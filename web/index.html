@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8" />
+	<meta name="description" content="" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+	<!-- Primary Meta Tags -->
+	<title>GoRetro - Minimalist open-source retro board for happy team 😉</title>
+	<meta name="title" content="GoRetro" />
+	<meta name="description" content="Minimalist open-source retro board for happy team 😉" />
+	<link rel="stylesheet" href="/static/tailwind.css">
+	<script src="/static/alpine.js" defer></script>
+	<script src="/static/app.js"></script>
+	<style>
+		[x-cloak] {
+			display: none;
+		}
+		
+		.form-radio {
+			-webkit-appearance: none;
+			-moz-appearance: none;
+			appearance: none;
+			-webkit-print-color-adjust: exact;
+			color-adjust: exact;
+			display: inline-block;
+			vertical-align: middle;
+			background-origin: border-box;
+			-webkit-user-select: none;
+			-moz-user-select: none;
+			-ms-user-select: none;
+			user-select: none;
+			flex-shrink: 0;
+			color: currentColor;
+			background-color: #fff;
+			border-color: #e2e8f0;
+			border-width: 1px;
+			height: 1.4em;
+			width: 1.4em;
+		}
+
+		.form-radio {
+			border-radius: 50%;
+		}
+
+		.form-radio:checked {
+			background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e");
+			border-color: transparent;
+			background-color: currentColor;
+			background-size: 100% 100%;
+			background-position: center;
+			background-repeat: no-repeat;
+		}
+	</style>
+</head>
+
+<body class="antialiased sans-serif bg-gray-400">
+	<!-- Alert Box -->
+	<div 
+		class="fixed w-full z-50 flex inset-0 items-start justify-center pointer-events-none md:mt-5"
+		x-data="{ 
+			message: '', 
+			showFlashMessage(event) {
+				this.message = event.detail.message; 
+				setTimeout(() => this.message = '', 3000) 
+			} 
+		}"
+	>
+		<template x-on:flash.window="showFlashMessage(event)"></template>
+		<template x-if="message">
+			<div		 
+				role="alert"
+				x-transition:enter="transition ease-out duration-300 transform"
+				x-transition:enter-start="-translate-y-5 opacity-0"
+				x-transition:enter-end="translate-y-0 opacity-100"
+				x-transition:leave="transition ease-in duration-100 transform"
+				x-transition:leave-start="opacity-100"
+				x-transition:leave-end="opacity-0 -translate-y-5"
+				class="w-full px-4 py-4 w-full md:max-w-sm bg-gray-900 md:rounded-md shadow-lg">
+				<div class="flex items-center">
+					<div class="flex-shrink-0 mr-3">
+						<svg class="h-6 w-6 text-gray-400"  viewBox="0 0 20 20" fill="currentColor">  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
+					</div>
+					<div class="text-gray-200 text-base" x-text="message"></div>
+				</div>
+			</div>
+		</template>
+	</div>
+	<!-- /Alert Box -->
+
+	<div x-data="app()" x-init="initBoard()" x-cloak class="flex flex-col min-h-screen">
+		<div class="flex-1">
+			<div class="py-4 px-6">
+				<!-- Main Page -->
+				<div>
+					<div>
+						<!-- Kanban Board -->
+						<div class="mt-4">
+							<div :class="`grid grid-cols-${columns.length} gap-4 block pb-2`">
+								<template x-for="column in columns" :key="column.id">	
+									<div>
+										<div class="bg-gray-100 pb-4 rounded-md shadow overflow-y-auto overflow-x-hidden border-t-8 border-blue-600"
+											style="min-height: 100px"
+										>
+											<div class="flex justify-between items-center px-4 py-2 bg-gray-100 mb-2">
+												<h2 x-text="column.name" class="font-bold text-gray-800 text-2xl"></h2>
+											</div> 
+											
+											<div class="px-4">
+												<div
+													@dragover="onDragOver(event)"
+													@drop="onDrop(event, column.id)"
+													@dragenter="onDragEnter(event)"
+													@dragleave="onDragLeave(event)"
+													class="pb-10 rounded-md cursor-pointer">
+													<template x-for="c in cards.filter(c => c.column === column.id)" :key="c.id">
+														<div :id="c.id">
+															<div x-show="c.edit == false">
+																<div
+																	x-show="c.edit == false"
+																	class="bg-white rounded-md shadow mb-3 p-3 border border-gray-400" 
+																	draggable="true" 
+																	@dragstart="onDragStart(event, c.id)"
+																	@dblclick="c.edit = true; setTimeout(() => $refs[c.id].focus())"
+																>
+																	<div x-text="c.name" class="text-gray-800 font-medium leading-tight"></div>
+																</div>
+															</div>
+															
+															<div x-show="c.edit == true" class="bg-white rounded-md p-4 shadow mb-4 border border-gray-400">
+																<div class="mb-4">
+																	<textarea 
+																		:x-ref="c.id"
+																		class="bg-gray-200 appearance-none border rounded-md w-full py-2 px-2 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-gray-400" 
+																		x-model="c.name"
+																		@keydown.enter="saveCard(c)"
+																		>
+																	</textarea>	
+																</div>
+																<div class="flex justify-between">
+																	<a @click="deleteCard(c)" class="text-sm text-red-600 font-medium">Delete</a>
+																	<div>
+																	<button type="button" class="bg-white hover:bg-gray-100 text-gray-700 font-semibold py-1 px-2 text-sm border border-gray-300 rounded-md shadow-sm mr-2" @click="c.edit = false">
+																		Cancel
+																	</button>	
+																	<button type="button" class="text-white font-semibold py-1 px-2 text-sm border border-transparent rounded-md shadow-sm" @click="saveCard(c)"
+																	:class="`bg-blue-700 hover:bg-blue-800`"
+																	>
+																		Save
+																	</button>	
+																	</div>
+																</div>
+															</div>
+																
+														</div>
+													</template>
+												</div>
+												<div class="text-center">
+													<a @click.prevent="showModal(column)" href="#" 
+													class="inline-flex items-center text-gray-700 text-sm font-medium "
+													>
+														<svg class="h-4 w-4"  fill="none" viewBox="0 0 24 24" stroke="currentColor">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+														</svg>									  
+														Add Card
+													</a>
+												</div>
+											</div>
+	
+										</div>
+									</div>
+								</template>
+							</div>
+						</div>
+						<!-- /Kanban Board -->
+					</div>
+				</div>
+				<!-- /Main Page -->
+			</div>
+		</div>
+
+		<!-- Footer -->
+		<div class="container mx-auto px-4 py-10 text-center">
+			<p class="text-xs text-gray-600 text-center"><span class="bg-gray-500 text-gray-100 px-1 rounded-md" x-text="boardId"></span></p>
+			<p class="text-xs text-gray-600 text-center"><a href="https://github.com/ekaputra07/go-retro" class="underline">GoRetro</a> - Minimalist open-source retro board for happy team 😉</p>
+		</div>
+		<!-- /Footer -->
+	
+		<!-- Modal -->
+		<div class="fixed inset-0 flex h-screen w-full items-end md:items-center justify-center z-10" x-show.transition.opacity="openModal">
+			<div class="absolute inset-0 bg-black opacity-50"></div>
+
+			<div class="md:p-4 md:max-w-lg mx-auto w-full flex-1 relative overflow-hidden">
+				<div class="md:shadow absolute right-0 top-0 w-10 h-10 rounded-full bg-white text-gray-500 hover:text-gray-800 inline-flex items-center justify-center cursor-pointer"
+					x-on:click="openModal = !openModal">
+					<svg class="fill-current w-6 h-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+						<path
+							d="M16.192 6.344L11.949 10.586 7.707 6.344 6.293 7.758 10.535 12 6.293 16.242 7.707 17.656 11.949 13.414 16.192 17.656 17.606 16.242 13.364 12 17.606 7.758z" />
+					</svg>
+				</div>
+
+				<div class="w-full rounded-t-lg md:rounded-md bg-white p-8">
+					<h2 class="font-semibold text-xl mb-6 text-gray-800">New card for <span class="leading-normal text-blue-600" x-text="card.column.name"></span></h2>
+				
+					<div class="mb-4">
+						<textarea class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-500" x-model="card.name" x-ref="cardName" autofocus @keydown.enter="addCard()"></textarea>
+					</div>
+
+					<div class="mt-8 text-right">
+						<button type="button" class="bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 border border-gray-300 rounded-md shadow-sm mr-2" @click="openModal = !openModal">
+							Cancel
+						</button>	
+						<button type="button" class="text-white font-semibold py-2 px-4 border border-transparent rounded-md shadow-sm" @click="addCard()"
+						:class="`bg-blue-700 hover:bg-blue-800`"
+						>
+							Save Card
+						</button>	
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- /Modal -->
+	</div>
+</body>
+</html>
