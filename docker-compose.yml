@@ -1,0 +1,12 @@
+services:
+  app:
+    image: golang:1.23-alpine
+    working_dir: /app
+    volumes:
+      - .:/app
+      - ./go-cache:/go # cache go modules on our machine
+    environment:
+      - GORETRO_HOST=0.0.0.0
+    ports:
+      - "8080:8080"
+    entrypoint: go run .
