@@ -18,11 +18,13 @@ function app() {
         },
         initBoard() {
             const host = window.location.host;
+            const protocol = window.location.protocol;
             const pathname = window.location.pathname;
             const boardId = pathname.replace('/b/', '');
             this.boardId = boardId;
 
-            this.socket = new WebSocket(`ws://${host}${pathname}/ws`);
+            const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
+            this.socket = new WebSocket(`${wsProtocol}//${host}${pathname}/ws`);
             var app = this;
             this.socket.addEventListener("open", (event) => {
                 app.onWsOpen(event);
