@@ -1,6 +1,6 @@
 # go-retro
 
-Minimalist, real-time and open-source retro board for happy teams 😉
+Minimalist, real-time and open-source retro board written in Go 😉
 
 > **What is retro board?** The Retrospective Board enables you to carry out a 'lessons learned' assessment of a project, or even a phase/sprint within a project. Usually helds at the end of the sprint.
 
