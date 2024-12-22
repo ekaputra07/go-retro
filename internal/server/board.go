@@ -58,6 +58,12 @@ func (b *board) removeUser(user *user) {
 
 func (b *board) updateAndBroadcast(msg *model.Message) {
 	switch msg.Type {
+	case model.MessageTypeColumnNew:
+		b.createColumn(msg)
+	case model.MessageTypeColumnDelete:
+		b.deleteColumn(msg)
+	case model.MessageTypeColumnUpdate:
+		b.updateColumn(msg)
 	case model.MessageTypeCardNew:
 		b.createCard(msg)
 	case model.MessageTypeCardDelete:
@@ -65,6 +71,7 @@ func (b *board) updateAndBroadcast(msg *model.Message) {
 	case model.MessageTypeCardUpdate:
 		b.updateCard(msg)
 	}
+	b.broadcastStatus()
 }
 
 func (b *board) broadcastStatus() {
@@ -78,13 +85,13 @@ func (b *board) broadcastStatus() {
 }
 
 func newColumn(name string) *column {
-	return &column{ID: uuid.New(), Name: name}
+	return &column{ID: uuid.New(), Name: name, CreatedAt: time.Now().Unix()}
 }
 
 func newBoard(id string) *board {
 	columns := []*column{}
 	for _, c := range defaultColumns {
-		columns = append(columns, &column{ID: uuid.New(), Name: c})
+		columns = append(columns, newColumn(c))
 	}
 	return &board{
 		ID:        id,

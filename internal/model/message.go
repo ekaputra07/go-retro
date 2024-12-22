@@ -3,15 +3,15 @@ package model
 type MessageType string
 
 const (
-	MessageTypeBoardStatus   MessageType = "board.status"
-	MessageTypeColumnCreated MessageType = "column.created"
-	MessageTypeColumnUpdated MessageType = "column.updated"
-	MessageTypeColumnDeleted MessageType = "column.deleted"
-	MessageTypeCardNew       MessageType = "card.new"
-	MessageTypeCardUpdate    MessageType = "card.update"
-	MessageTypeCardDelete    MessageType = "card.delete"
-	MessageTypeTimerStarted  MessageType = "timer.started"
-	MessageTypeTimerStopped  MessageType = "timer.stopped"
+	MessageTypeBoardStatus  MessageType = "board.status"
+	MessageTypeColumnNew    MessageType = "column.new"
+	MessageTypeColumnUpdate MessageType = "column.update"
+	MessageTypeColumnDelete MessageType = "column.delete"
+	MessageTypeCardNew      MessageType = "card.new"
+	MessageTypeCardUpdate   MessageType = "card.update"
+	MessageTypeCardDelete   MessageType = "card.delete"
+	MessageTypeTimerStarted MessageType = "timer.started"
+	MessageTypeTimerStopped MessageType = "timer.stopped"
 )
 
 type Message struct {

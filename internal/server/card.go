@@ -25,14 +25,13 @@ func (b *board) createCard(msg *model.Message) {
 	if !ok {
 		return
 	}
-	card := &card{
+	c := &card{
 		ID:        uuid.New(),
 		Name:      name.(string),
 		Column:    uuid.MustParse(column.(string)),
 		CreatedAt: time.Now().Unix(),
 	}
-	b.Cards = append(b.Cards, card)
-	b.broadcastStatus()
+	b.Cards = append(b.Cards, c)
 }
 
 func (b *board) deleteCard(msg *model.Message) {
@@ -48,7 +47,6 @@ func (b *board) deleteCard(msg *model.Message) {
 		}
 	}
 	b.Cards = cards
-	b.broadcastStatus()
 }
 
 func (b *board) updateCard(msg *model.Message) {
@@ -65,13 +63,12 @@ func (b *board) updateCard(msg *model.Message) {
 	if !ok {
 		return
 	}
-	card := b.cardById(uuid.MustParse(id.(string)))
-	if card == nil {
+	c := b.cardById(uuid.MustParse(id.(string)))
+	if c == nil {
 		return
 	}
-	card.Name = name.(string)
-	card.Column = uuid.MustParse(column.(string))
-	b.broadcastStatus()
+	c.Name = name.(string)
+	c.Column = uuid.MustParse(column.(string))
 }
 
 func (b *board) cardById(id uuid.UUID) *card {
