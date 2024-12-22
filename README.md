@@ -20,3 +20,5 @@ This project is inspired by https://www.dragondropcards.com and here I try to re
 
 ### Development
 The project is Dockerized so you could simply run `docker compose up` and the application should be accessible via `http://localhost:8080`.
+
+As I'm not an UI guy, I'm proudly steal the board design and HTML from https://github.com/mithicher/tasksgram which perfectly suite my needs for a clean design powered by AlpineJS and Tailwind CSS.
