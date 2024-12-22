@@ -17,6 +17,7 @@ This project is inspired by https://www.dragondropcards.com and here I try to re
 - [ ] A timer to allow users fill-in the board with cards within a specified time limit
 - [ ] Round robin user selection, user are selected randomly after each other during the session
 - [ ] Persistence layer, currently all data stored in memory
+- [ ] Delete board and it's resources after X hours of inactivity  
 
 ### Development
 The project is Dockerized so you could simply run `docker compose up` and the application should be accessible via `http://localhost:8080`.
