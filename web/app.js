@@ -14,7 +14,7 @@ function app() {
         tempCard: {
             id: '',
             name: '',
-            column: '',
+            column_id: '',
         },
         initBoard() {
             const host = window.location.host;
@@ -42,7 +42,7 @@ function app() {
             switch (e.type) {
                 case 'board.status':
                     this.numPeople = e.data.user_count;
-                    this.columns = e.data.columns.sort((a, b) => a.created_at - b.created_at);
+                    this.columns = e.data.columns.sort((a, b) => a.order - b.order);
                     this.cards = (e.data.cards || []).sort((a, b) => a.created_at - b.created_at)
                     break;
             }
@@ -79,11 +79,11 @@ function app() {
             if(card == null) {
                 this.tempCard.id = '';
                 this.tempCard.name = '';
-                this.tempCard.column = column.id;
+                this.tempCard.column_id = column.id;
             } else {
                 this.tempCard.id = card.id;
                 this.tempCard.name = card.name;
-                this.tempCard.column = column.id;
+                this.tempCard.column_id = column.id;
             }
             this.openCardModal = true;
             setTimeout(() => this.$refs.cardName.focus(), 200);
@@ -94,7 +94,7 @@ function app() {
             if(this.tempCard.id) {
                 this.socket.send(JSON.stringify({type: 'card.update', data: this.tempCard}));
             } else {
-                this.socket.send(JSON.stringify({type: 'card.new', data: {name: this.tempCard.name, column: this.tempCard.column}}));
+                this.socket.send(JSON.stringify({type: 'card.new', data: {name: this.tempCard.name, column_id: this.tempCard.column_id}}));
             }
             this.closeModal('card');
         },
@@ -111,13 +111,13 @@ function app() {
             if(name === 'card') {
                 this.tempCard.id = '';
                 this.tempCard.name = '';
-                this.tempCard.column = '';
+                this.tempCard.column_id = '';
                 this.openCardModal = false;
             }
         },
         onDragStart(event, card) {
             event.dataTransfer.setData('cardId', card.id);
-            event.dataTransfer.setData('cardColumn', card.column);
+            event.dataTransfer.setData('cardColumnId', card.column_id);
             event.target.classList.add('opacity-5');
         },
         onDragOver(event) {
@@ -138,9 +138,9 @@ function app() {
             event.target.classList.remove('bg-blue-200');
 
             const cardId = event.dataTransfer.getData('cardId');
-            const cardColumn = event.dataTransfer.getData('cardColumn');
+            const cardColumnId = event.dataTransfer.getData('cardColumnId');
 
-            if(cardColumn === newColumn.id) {
+            if(cardColumnId === newColumn.id) {
                 event.dataTransfer.clearData();
                 return;
             }
@@ -151,8 +151,8 @@ function app() {
             // dropzone.removeChild(draggableElement);
             
             // Update
-            let cardIndex = this.cards.findIndex(t => t.id === cardId);
-            this.cards[cardIndex].column = newColumn.id;
+            let cardIndex = this.cards.findIndex(c => c.id === cardId);
+            this.cards[cardIndex].column_id = newColumn.id;
             this.socket.send(JSON.stringify({type: 'card.update', data: this.cards[cardIndex]}));
             event.dataTransfer.clearData();
         },

@@ -1,7 +1,7 @@
 package server
 
 import (
-	"time"
+	"errors"
 
 	"github.com/ekaputra07/go-retro/internal/model"
 	"github.com/google/uuid"
@@ -9,63 +9,43 @@ import (
 
 var defaultColumns = []string{"Good", "Bad", "Questions"}
 
-type column struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	CreatedAt int64     `json:"created_at"`
+func (b *board) createColumn(msg *model.Message) error {
+	data := msg.Data.(map[string]any)
+	name, ok := data["name"]
+	if !ok {
+		return errors.New("createColumn payload missing `name` field")
+	}
+	_, err := b.db.CreateColumn(name.(string), b.ID)
+	return err
 }
 
-func (b *board) columnByID(id uuid.UUID) *column {
-	for _, c := range b.Columns {
-		if c.ID == id {
-			return c
-		}
+func (b *board) deleteColumn(msg *model.Message) error {
+	data := msg.Data.(map[string]any)
+	id, ok := data["id"]
+	if !ok {
+		return errors.New("deleteColumn payload missing `id` field")
+	}
+	return b.db.DeleteColumn(uuid.MustParse(id.(string)))
+}
+
+func (b *board) updateColumn(msg *model.Message) error {
+	data := msg.Data.(map[string]any)
+
+	// get column
+	id, ok := data["id"]
+	if !ok {
+		return errors.New("updateColumn payload missing `id` field")
+	}
+	col, err := b.db.GetColumn(uuid.MustParse(id.(string)))
+	if err != nil {
+		return err
+	}
+
+	// if name set, update
+	name, ok := data["name"]
+	if ok {
+		col.Name = name.(string)
+		return b.db.UpdateColumn(col)
 	}
 	return nil
-}
-
-func (b *board) createColumn(msg *model.Message) {
-	data := msg.Data.(map[string]any)
-	name, ok := data["name"]
-	if !ok {
-		return
-	}
-	c := &column{
-		ID:        uuid.New(),
-		Name:      name.(string),
-		CreatedAt: time.Now().Unix(),
-	}
-	b.Columns = append(b.Columns, c)
-}
-
-func (b *board) deleteColumn(msg *model.Message) {
-	data := msg.Data.(map[string]any)
-	id, ok := data["id"]
-	if !ok {
-		return
-	}
-	columns := []*column{}
-	for _, c := range b.Columns {
-		if c.ID.String() != id {
-			columns = append(columns, c)
-		}
-	}
-	b.Columns = columns
-}
-
-func (b *board) updateColumn(msg *model.Message) {
-	data := msg.Data.(map[string]any)
-	id, ok := data["id"]
-	if !ok {
-		return
-	}
-	name, ok := data["name"]
-	if !ok {
-		return
-	}
-	c := b.columnByID(uuid.MustParse(id.(string)))
-	if c == nil {
-		return
-	}
-	c.Name = name.(string)
 }

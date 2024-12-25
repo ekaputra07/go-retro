@@ -1,14 +1,19 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
-	petname "github.com/dustinkirkland/golang-petname"
 	"github.com/ekaputra07/go-retro/internal/server"
+	"github.com/ekaputra07/go-retro/internal/storage"
+	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
@@ -19,7 +24,13 @@ var (
 )
 
 func main() {
-	ws := server.NewWSServer()
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	db := storage.NewMemoryStore()
+	ws := server.NewWSServer(db)
+	stopWS := make(chan struct{})
+	go ws.Start(stopWS)
 
 	r := mux.NewRouter()
 	r.Use(loggingMiddleware)
@@ -43,8 +54,25 @@ func main() {
 		WriteTimeout: 15 * time.Second,
 		ReadTimeout:  15 * time.Second,
 	}
-	log.Printf("go-retro running on %s...", hostPort)
-	log.Fatal(srv.ListenAndServe())
+
+	go func() {
+		log.Printf("http-server running on %s...", hostPort)
+		if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+			log.Fatalf("http-server not started: %v", err)
+		}
+		log.Println("http-server shutting down...")
+	}()
+
+	<-sigChan
+	stopWS <- struct{}{}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("http-server shutdown error: %v", err)
+	}
+	log.Println("http-server shutdown complete")
 }
 
 func loggingMiddleware(next http.Handler) http.Handler {
@@ -52,7 +80,7 @@ func loggingMiddleware(next http.Handler) http.Handler {
 }
 
 func generateBoardHandler(w http.ResponseWriter, r *http.Request) {
-	id := petname.Generate(3, "-")
+	id := uuid.New()
 	http.Redirect(w, r, fmt.Sprintf("/b/%s", id), http.StatusSeeOther)
 }
 

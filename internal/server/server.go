@@ -4,6 +4,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/ekaputra07/go-retro/internal/storage"
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
@@ -15,7 +17,28 @@ var upgrader = websocket.Upgrader{
 }
 
 type WSServer struct {
-	boards map[*board]bool
+	db              storage.Storage
+	boards          map[*board]bool
+	registerBoard   chan *board
+	unregisterBoard chan *board
+}
+
+func (ws *WSServer) Start(stop chan struct{}) {
+
+	log.Println("websocket server started")
+	for {
+		select {
+		case b := <-ws.registerBoard:
+			ws.boards[b] = true
+			log.Printf("board=%s registered", b.ID)
+		case b := <-ws.unregisterBoard:
+			delete(ws.boards, b)
+			log.Printf("board=%s unregistered", b.ID)
+		case <-stop:
+			log.Println("websocket server stopped")
+			return
+		}
+	}
 }
 
 func (ws *WSServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +51,10 @@ func (ws *WSServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	board := ws.getOrStartBoard(boardID)
+	// get or start board process
+	board := ws.getOrStartBoard(uuid.MustParse(boardID))
+
+	// start user process
 	user := newUser(conn)
 	defer func() { board.leave <- user }()
 
@@ -36,25 +62,26 @@ func (ws *WSServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	user.start()
 }
 
-func (ws *WSServer) getOrStartBoard(id string) *board {
-	var b *board
-	for eb := range ws.boards {
-		if eb.ID == id {
-			log.Printf("existing board=%s found\n", eb.ID)
-			return eb
+func (ws *WSServer) getOrStartBoard(id uuid.UUID) *board {
+	// if board is running, return it
+	for b := range ws.boards {
+		if b.ID == id {
+			log.Printf("board=%s still running\n", b.ID)
+			return b
 		}
 	}
 
-	// not running, create and run new one
-	b = newBoard(id)
-	log.Printf("new board=%s created\n", b.ID)
-	go b.Start()
-	ws.boards[b] = true
-	return b
+	board, _ := getOrCreateBoard(id, ws)
+	ws.registerBoard <- board
+	go board.start()
+	return board
 }
 
-func NewWSServer() *WSServer {
+func NewWSServer(db storage.Storage) *WSServer {
 	return &WSServer{
-		boards: make(map[*board]bool),
+		db:              db,
+		boards:          make(map[*board]bool),
+		registerBoard:   make(chan *board),
+		unregisterBoard: make(chan *board),
 	}
 }

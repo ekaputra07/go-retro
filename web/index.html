@@ -118,7 +118,7 @@
 													@dragenter="onDragEnter(event)"
 													@dragleave="onDragLeave(event)"
 													class="pb-10 rounded-md cursor-pointer is-dropzone">
-													<template x-for="c in cards.filter(c => c.column === column.id)" :key="c.id">
+													<template x-for="c in cards.filter(c => c.column_id === column.id)" :key="c.id">
 														<div :id="c.id">
 															<div
 																class="bg-white rounded-md shadow mb-3 p-3 border border-gray-400" 
@@ -178,7 +178,7 @@
 			<div class="md:p-4 md:max-w-lg mx-auto w-full flex-1 relative overflow-hidden">
 				<div class="w-full rounded-t-lg md:rounded-md bg-white p-8">
 
-					<h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="!tempCard.id">New card for <span class="leading-normal text-blue-600" x-text="columnNameById(tempCard.column)"></span></h2>
+					<h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="!tempCard.id">New card for <span class="leading-normal text-blue-600" x-text="columnNameById(tempCard.column_id)"></span></h2>
 					<h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="tempCard.id">Edit card</h2>
 
 					<div class="mb-4">

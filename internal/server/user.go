@@ -21,10 +21,10 @@ func (u *user) read() {
 		var msg model.Message
 		err := u.conn.ReadJSON(&msg)
 		if err != nil {
-			log.Printf("user=%s error reading: %s", u.ID, err)
+			log.Printf("user=%s error reading <-- %s", u.ID, err)
 			break
 		}
-		log.Printf("user=%s receive: %s", u.ID, msg.Type)
+		log.Printf("user=%s <-- %s", u.ID, msg.Type)
 		u.board.message <- &msg
 	}
 }
@@ -32,9 +32,9 @@ func (u *user) read() {
 func (u *user) write() {
 	defer u.conn.Close()
 	for msg := range u.message {
-		log.Printf("user=%s sending: %v", u.ID, msg.Type)
+		log.Printf("user=%s --> %v", u.ID, msg.Type)
 		if err := u.conn.WriteJSON(msg); err != nil {
-			log.Printf("user=%s error writing: %v", u.ID, err)
+			log.Printf("user=%s error writing --> %v", u.ID, err)
 			break
 		}
 	}
@@ -46,6 +46,11 @@ func (u *user) start() {
 
 	// read message from client
 	u.read()
+}
+
+func (u *user) stop() {
+	log.Printf("user=%s stopped\n", u.ID)
+	close(u.message)
 }
 
 func newUser(conn *websocket.Conn) *user {

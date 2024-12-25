@@ -1,81 +1,66 @@
 package server
 
 import (
-	"time"
+	"errors"
 
 	"github.com/ekaputra07/go-retro/internal/model"
 	"github.com/google/uuid"
 )
 
-type card struct {
-	ID        uuid.UUID `json:"id"`
-	Name      string    `json:"name"`
-	Column    uuid.UUID `json:"column"`
-	CreatedAt int64     `json:"created_at"`
-}
-
-func (b *board) createCard(msg *model.Message) {
-	// TODO: need a cleaner way to handle this
+func (b *board) createCard(msg *model.Message) error {
 	data := msg.Data.(map[string]any)
 	name, ok := data["name"]
 	if !ok {
-		return
+		return errors.New("createCard payload missing `name` field")
 	}
-	column, ok := data["column"]
+	colID, ok := data["column_id"]
 	if !ok {
-		return
+		return errors.New("createCard payload missing `column_id` field")
 	}
-	c := &card{
-		ID:        uuid.New(),
-		Name:      name.(string),
-		Column:    uuid.MustParse(column.(string)),
-		CreatedAt: time.Now().Unix(),
+	col, err := b.db.GetColumn(uuid.MustParse(colID.(string)))
+	if err != nil {
+		return err
 	}
-	b.Cards = append(b.Cards, c)
+	_, err = b.db.CreateCard(name.(string), b.ID, col.ID)
+	return err
 }
 
-func (b *board) deleteCard(msg *model.Message) {
+func (b *board) deleteCard(msg *model.Message) error {
 	data := msg.Data.(map[string]any)
 	id, ok := data["id"]
 	if !ok {
-		return
+		return errors.New("deleteCard payload missing `id` field")
 	}
-	cards := []*card{}
-	for _, c := range b.Cards {
-		if c.ID.String() != id {
-			cards = append(cards, c)
-		}
-	}
-	b.Cards = cards
+	return b.db.DeleteCard(uuid.MustParse(id.(string)))
 }
 
-func (b *board) updateCard(msg *model.Message) {
+func (b *board) updateCard(msg *model.Message) error {
 	data := msg.Data.(map[string]any)
+
+	// get card
 	id, ok := data["id"]
 	if !ok {
-		return
+		return errors.New("updateCard payload missing `id` field")
 	}
+	card, err := b.db.GetCard(uuid.MustParse(id.(string)))
+	if err != nil {
+		return err
+	}
+
+	// if name set, update
 	name, ok := data["name"]
-	if !ok {
-		return
+	if ok {
+		card.Name = name.(string)
 	}
-	column, ok := data["column"]
-	if !ok {
-		return
-	}
-	c := b.cardById(uuid.MustParse(id.(string)))
-	if c == nil {
-		return
-	}
-	c.Name = name.(string)
-	c.Column = uuid.MustParse(column.(string))
-}
 
-func (b *board) cardById(id uuid.UUID) *card {
-	for _, c := range b.Cards {
-		if c.ID == id {
-			return c
+	// if colum set, update
+	colID, ok := data["column_id"]
+	if ok {
+		col, err := b.db.GetColumn(uuid.MustParse(colID.(string)))
+		if err != nil {
+			return err
 		}
+		card.ColumnID = col.ID
 	}
-	return nil
+	return b.db.UpdateCard(card)
 }
