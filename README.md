@@ -2,9 +2,9 @@
 
 Minimalist, real-time and open-source retro board written in Go 😉
 
-> **What is retro board?** The Retrospective Board enables you to carry out a 'lessons learned' assessment of a project, or even a phase/sprint within a project. Usually helds at the end of the sprint.
+> **What the heck is retro board?** The Retrospective Board usually used as a tool during sprint restrospective meeting by a team to carry out a "lessons learned" or "how do you feel?" assessment of the sprint. Usually helds at the end of the sprint period.
 
-This project is inspired by https://www.dragondropcards.com and here I try to replicate the functionalities as much as possible while also adding some cool features that I think would be useful.
+This project is heavily inspired by https://www.dragondropcards.com, here I'm trying to replicate the functionalities as much as possible while also adding some cool features that I think would be useful (timer, online users, etc).
 
 👉Try it: https://go-retro.fly.dev
 
@@ -13,12 +13,13 @@ This project is inspired by https://www.dragondropcards.com and here I try to re
 - [x] Add/Update/Delete cards
 - [x] Move cards to other column
 - [x] See number of online users
+- [x] A timer to allow users fill-in the board with cards within a specified time limit
 - [ ] Group cards
-- [ ] A timer to allow users fill-in the board with cards within a specified time limit
+- [ ] React to a card (thumbs up or emoji?)
 - [ ] Round robin user selection, user are selected randomly after each other during the session
 - [ ] Persistence layer, currently all data stored in memory
 
 ### Development
-The project is Dockerized so you could simply run `docker compose up` and the application should be accessible via `http://localhost:8080`.
+The project is Dockerized so you could simply run `docker compose up` and the application should be accessible via `http://localhost:8080`. Or if you're like me, I simply do `go run .` during development.
 
-As I'm not an UI guy, I'm proudly steal the board design and HTML from https://github.com/mithicher/tasksgram which perfectly suite my needs for a clean design powered by AlpineJS and Tailwind CSS.
+As I'm not a UI guy, I steal and modify the board HTML from https://github.com/mithicher/tasksgram by [@mithicher](https://github.com/mithicher/tasksgram) which perfectly suite my needs for a clean design powered by AlpineJS and Tailwind CSS.

@@ -16,8 +16,8 @@ const (
 	MessageTypeCardNew      MessageType = "card.new"
 	MessageTypeCardUpdate   MessageType = "card.update"
 	MessageTypeCardDelete   MessageType = "card.delete"
-	MessageTypeTimerStarted MessageType = "timer.started"
-	MessageTypeTimerStopped MessageType = "timer.stopped"
+	MessageTypeTimerCmd     MessageType = "timer.cmd"
+	MessageTypeTimerState   MessageType = "timer.state"
 )
 
 type Message struct {

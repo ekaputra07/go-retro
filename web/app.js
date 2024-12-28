@@ -3,6 +3,7 @@ function app() {
         socket: null,
         openCardModal: false,
         openColumnModal: false,
+        openTimerModal: false,
         boardId: '',
         columns: [],
         cards: [],
@@ -15,6 +16,13 @@ function app() {
             id: '',
             name: '',
             column_id: '',
+        },
+        timer: {
+            duration: '5m',
+            show: false,
+            running: false,
+            done: false,
+            display: "00:00",
         },
         initBoard() {
             const host = window.location.host;
@@ -45,6 +53,15 @@ function app() {
                     this.columns = e.data.columns.sort((a, b) => a.order - b.order);
                     this.cards = (e.data.cards || []).sort((a, b) => a.created_at - b.created_at)
                     break;
+                case 'timer.state':
+                    this.timer.show = ['running', 'paused', 'done'].indexOf(e.data.status) !== -1;
+                    this.timer.done = e.data.status === 'done';
+                    this.timer.running = e.data.status === 'running';
+                    this.timer.display = e.data.display;
+                    if(this.timer.done) {
+                        this.playSound();
+                        setTimeout(() => this.stopTimer(), 10000);
+                    }
             }
         },
         columnNameById(id){
@@ -114,6 +131,9 @@ function app() {
                 this.tempCard.column_id = '';
                 this.openCardModal = false;
             }
+            if(name === 'timer') {
+                this.openTimerModal = false;
+            }
         },
         onDragStart(event, card) {
             event.dataTransfer.setData('cardId', card.id);
@@ -156,5 +176,29 @@ function app() {
             this.socket.send(JSON.stringify({type: 'card.update', data: this.cards[cardIndex]}));
             event.dataTransfer.clearData();
         },
+        startTimer() {
+            if(this.timer.running) return;
+            this.closeModal('timer');
+            this.socket.send(JSON.stringify({type: 'timer.cmd', data: {cmd: 'start', value: this.timer.duration}}));
+        },
+        pauseTimer() {
+            if(!this.timer.running) return;
+            this.socket.send(JSON.stringify({type: 'timer.cmd', data: {cmd: 'pause'}}));
+        },
+        resumeTimer() {
+            if(this.timer.running) return;
+            this.socket.send(JSON.stringify({type: 'timer.cmd', data: {cmd: 'start'}}));
+        },
+        stopTimer() {
+            this.socket.send(JSON.stringify({type: 'timer.cmd', data: {cmd: 'stop'}}));
+            this.timer.show = false;
+            this.timer.running = false;
+            this.timer.done = false;
+            this.timer.display = "00:00";
+        },
+        playSound() {
+            const audio = new Audio('/static/notif.wav');
+            audio.play();
+        }
     }
 }

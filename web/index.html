@@ -90,6 +90,23 @@
 
 	<div x-data="app()" x-init="initBoard()" x-cloak class="flex flex-col min-h-screen">
 		<div class="flex-1">
+			<div :class="timer.done ? 'bg-orange-600' : 'bg-gray-800'" class="p-3" x-show="timer.show">
+					<div class="flex justify-center items-center text-white gap-2 relative">
+						<div x-show="timer.done" class="text-xl font-bold leading-none">Time's up<span class="italic">!</span></div>
+						<div x-show="!timer.done" class="flex items-center gap-2">
+							<div class="text-xl font-bold leading-none" x-text="timer.display"></div>
+							<button x-show="timer.running" @click="pauseTimer()">
+								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10s10-4.477 10-10S17.523 2 12 2m-1 14H9V8h2zm4 0h-2V8h2z"/></svg>
+							</button>
+							<button x-show="!timer.running" @click="resumeTimer()">
+								<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m-2 14.5v-9l6 4.5z"/></svg>
+							</button>
+						</div>
+						<button class="absolute top-1 right-0 mr-2" @click="stopTimer()">
+							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="m13.5.5l-13 13m0-13l13 13"/></svg>
+						</button>
+					</div>
+			</div>
 			<div class="py-4 px-6">
 				<!-- Main Page -->
 					<div>
@@ -158,16 +175,16 @@
 		<div class="flex justify-between items-center bg-white px-4 py-1 shadow text-xs text-gray-600 text-center">
 			<div class="flex justify-between md:justify-start items-center gap-2 flex-1">
 				<!-- <p class="text-xs text-gray-600 text-center"><span x-text="boardId"></span></p> -->
-				<div class="flex items-center gap-1"><span class="flex w-2 h-2 me-4 bg-green-500 rounded-full"></span> <span x-text="numPeople + ' people online'"></span></div>
+				<div class="flex items-center gap-1"><span class="flex w-2 h-2 me-4 bg-green-500 rounded-full"></span> <span x-text="(numPeople == 1 ? '1 person' : `${numPeople} people`) + ' online'"></span></div>
 			</div>
-			<p class="text-xs text-gray-600 text-center hidden md:block"><a href="https://github.com/ekaputra07/go-retro" class="underline">GoRetro</a> - Minimalist open-source retro board for happy teams 😉</p>
+			<p class="text-xs text-gray-600 text-center hidden md:block"><a href="https://github.com/ekaputra07/go-retro" class="underline" target="_blank">GoRetro</a> - Minimalist open-source retro board for happy teams 😉</p>
 		</div>
 		<!-- /Footer -->
 
 		<div title="New Column" class="fixed bottom-0 right-0 w-12 h-12 text-white shadow p-3 mb-10 mr-4 rounded-full bg-blue-600 hover:bg-blue-700 z-9 cursor-pointer" @click="editColumn(null)">
 			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-7-7v14"/></svg>		</div>
 
-		<div title="Start a timer" class="fixed bottom-0 left-0 w-12 h-12 text-white shadow p-3 mb-10 ml-4 rounded-full bg-blue-600 hover:bg-blue-700 z-9 cursor-pointer">
+		<div title="Start a timer" class="fixed bottom-0 left-0 w-12 h-12 text-white shadow p-3 mb-10 ml-4 rounded-full bg-blue-600 hover:bg-blue-700 z-9 cursor-pointer" @click="openTimerModal=true" x-show.transition="!timer.show">
 			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M9 3V1h6v2zm3 19q-1.85 0-3.488-.712T5.65 19.35t-1.937-2.863T3 13t.713-3.488T5.65 6.65t2.863-1.937T12 4q1.55 0 2.975.5t2.675 1.45l1.4-1.4l1.4 1.4l-1.4 1.4Q20 8.6 20.5 10.025T21 13q0 1.85-.713 3.488T18.35 19.35t-2.863 1.938T12 22m0-2q2.9 0 4.95-2.05T19 13t-2.05-4.95T12 6T7.05 8.05T5 13t2.05 4.95T12 20m-2-3l6-4l-6-4z"/></svg>		
 		</div>
 
@@ -217,6 +234,29 @@
 						</button>
 						<button type="button" class="text-white font-semibold py-1 px-4 border border-transparent rounded-md shadow-sm bg-blue-700 hover:bg-blue-800"  @click="saveColumn()">
 							Save
+						</button>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<!-- new timer modal -->
+		<div class="fixed inset-0 flex h-screen w-full items-end md:items-center justify-center z-10" x-show="openTimerModal">
+			<div class="absolute inset-0 bg-black opacity-50"></div>
+			<div class="md:p-4 md:max-w-lg mx-auto w-full flex-1 relative overflow-hidden">
+				<div class="w-full rounded-t-lg md:rounded-md bg-white p-8">
+					<h2 class="font-semibold text-xl mb-6 text-gray-800">Timer duration</h2>
+					<div class="mb-4">
+						<input type="text" class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-500" x-model="timer.duration" x-ref="columnName" autofocus @keydown.enter="startTimer()"/>
+						<p class="text-gray-500 text-sm mt-2">Supported formats: <strong>5m</strong> or <strong>30s</strong> or <strong>5m30s</strong></p>
+					</div>
+					<div class="flex justify-between items-center mt-8 text-right">
+						<div class="flex-1">
+						<button type="button" class="bg-white hover:bg-gray-100 text-gray-700 font-semibold py-1 px-4 border border-gray-300 rounded-md shadow-sm mr-2" @click="closeModal('timer')">
+							Cancel
+						</button>
+						<button type="button" class="text-white font-semibold py-1 px-4 border border-transparent rounded-md shadow-sm bg-blue-700 hover:bg-blue-800"  @click="startTimer()">
+							Start
 						</button>
 						</div>
 					</div>

@@ -50,6 +50,7 @@ func (ws *WSServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
+	defer conn.Close()
 
 	// get or start board process
 	board := ws.getOrStartBoard(uuid.MustParse(boardID))

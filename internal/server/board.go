@@ -1,6 +1,7 @@
 package server
 
 import (
+	"errors"
 	"fmt"
 	"log"
 
@@ -15,6 +16,7 @@ type board struct {
 	ws        *WSServer
 	db        storage.Storage
 	users     map[*user]bool
+	timer     *timer
 
 	// user joined and leaved
 	join  chan *user
@@ -28,24 +30,44 @@ type board struct {
 }
 
 func (b *board) start() {
+	// start the timer
+	go b.timer.run()
+
 	log.Printf("board=%s started", b.ID)
 	for {
 		select {
 		case user := <-b.join:
 			b.addUser(user)
 			b.broadcastStatus()
+			b.broadcastTimer()
+
 		case user := <-b.leave:
 			b.removeUser(user)
 			b.broadcastStatus()
+
 		case msg := <-b.message:
-			if err := b.update(msg); err != nil {
+			broadcast, err := b.update(msg)
+			if err != nil {
 				log.Printf("updating board=%s failed: %s", b.ID, err)
 				continue
 			}
-			if err := b.broadcastStatus(); err != nil {
-				log.Printf("broadcasting board=%s status failed: %s", b.ID, err)
+			if broadcast {
+				if err := b.broadcastStatus(); err != nil {
+					log.Printf("broadcasting board=%s status failed: %s", b.ID, err)
+				}
 			}
+
+		case <-b.timer.state:
+			b.broadcastTimer()
+
 		case <-b.stop:
+			// cleanup timer when board stopped
+			if b.timer != nil {
+				b.timer.cmd <- timerCmd{cmd: "destroy"}
+				b.timer = nil
+			}
+
+			// stop and unregister from ws server
 			b.ws.unregisterBoard <- b
 			log.Printf("board=%s stopped", b.ID)
 			return
@@ -75,23 +97,25 @@ func (b *board) removeUser(user *user) {
 	}
 }
 
-func (b *board) update(msg *model.Message) error {
+// update the board and broadcast its status if desired by returning `true` in bool output
+func (b *board) update(msg *model.Message) (bool, error) {
 	switch msg.Type {
 	case model.MessageTypeColumnNew:
-		return b.createColumn(msg)
+		return true, b.createColumn(msg)
 	case model.MessageTypeColumnDelete:
-		return b.deleteColumn(msg)
+		return true, b.deleteColumn(msg)
 	case model.MessageTypeColumnUpdate:
-		return b.updateColumn(msg)
+		return true, b.updateColumn(msg)
 	case model.MessageTypeCardNew:
-		return b.createCard(msg)
+		return true, b.createCard(msg)
 	case model.MessageTypeCardDelete:
-		return b.deleteCard(msg)
+		return true, b.deleteCard(msg)
 	case model.MessageTypeCardUpdate:
-		return b.updateCard(msg)
-	default:
-		return nil
+		return true, b.updateCard(msg)
+	case model.MessageTypeTimerCmd:
+		return false, b.handleTimer(msg)
 	}
+	return false, nil
 }
 
 func (b *board) broadcastStatus() error {
@@ -116,6 +140,16 @@ func (b *board) broadcastStatus() error {
 		u.message <- msg
 	}
 	return nil
+}
+
+func (b *board) broadcastTimer() {
+	msg := &model.Message{
+		Type: model.MessageTypeTimerState,
+		Data: b.timer,
+	}
+	for u := range b.users {
+		u.message <- msg
+	}
 }
 
 func getOrCreateBoard(id uuid.UUID, ws *WSServer) (*board, error) {
@@ -146,5 +180,23 @@ func getOrCreateBoard(id uuid.UUID, ws *WSServer) (*board, error) {
 		leave:     make(chan *user),
 		message:   make(chan *model.Message),
 		stop:      make(chan struct{}),
+		timer:     newTimer(),
 	}, nil
+}
+
+func (b *board) handleTimer(msg *model.Message) error {
+	data := msg.Data.(map[string]any)
+	cmdAny, ok := data["cmd"]
+	if !ok {
+		return errors.New("handleTimer payload missing `cmd` field")
+	}
+	cmd := timerCmd{cmd: cmdAny.(string)}
+
+	value, ok := data["value"]
+	if ok {
+		cmd.value = value.(string)
+	}
+
+	b.timer.cmd <- cmd
+	return nil
 }
