@@ -24,7 +24,6 @@ type WSServer struct {
 }
 
 func (ws *WSServer) Start(stop chan struct{}) {
-
 	log.Println("websocket server started")
 	for {
 		select {

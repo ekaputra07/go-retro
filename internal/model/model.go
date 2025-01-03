@@ -16,6 +16,7 @@ const (
 	MessageTypeCardNew      MessageType = "card.new"
 	MessageTypeCardUpdate   MessageType = "card.update"
 	MessageTypeCardDelete   MessageType = "card.delete"
+	MessageTypeCardVote     MessageType = "card.vote"
 	MessageTypeTimerCmd     MessageType = "timer.cmd"
 	MessageTypeTimerState   MessageType = "timer.state"
 )
@@ -60,6 +61,7 @@ type Card struct {
 	Name      string    `json:"name"`
 	BoardID   uuid.UUID `json:"board_id"`
 	ColumnID  uuid.UUID `json:"column_id"`
+	Votes     int       `json:"votes"`
 	CreatedAt int64     `json:"created_at"`
 }
 
@@ -69,6 +71,7 @@ func NewCard(name string, boardID, columnID uuid.UUID) *Card {
 		Name:      name,
 		BoardID:   boardID,
 		ColumnID:  columnID,
+		Votes:     0,
 		CreatedAt: time.Now().Unix(),
 	}
 }

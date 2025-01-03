@@ -2,6 +2,7 @@ package server
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/ekaputra07/go-retro/internal/model"
 	"github.com/google/uuid"
@@ -63,4 +64,30 @@ func (b *board) updateCard(msg *model.Message) error {
 		card.ColumnID = col.ID
 	}
 	return b.db.UpdateCard(card)
+}
+
+func (b *board) voteCard(msg *model.Message) error {
+	data := msg.Data.(map[string]any)
+
+	// get card
+	id, ok := data["id"]
+	if !ok {
+		return errors.New("voteCard payload missing `id` field")
+	}
+	card, err := b.db.GetCard(uuid.MustParse(id.(string)))
+	if err != nil {
+		return err
+	}
+
+	// if vote set, update
+	vote, ok := data["vote"]
+	if ok {
+		v := vote.(int)
+		if v != 1 && v != -1 {
+			return fmt.Errorf("vote value of %v is invalid", v)
+		}
+		card.Votes += v
+		return b.db.UpdateCard(card)
+	}
+	return nil
 }
