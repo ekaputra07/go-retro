@@ -2,6 +2,8 @@
 
 Minimalist, real-time and open-source retro board written in Go 😉
 
+![screenshot](https://github.com/ekaputra07/go-retro/blob/main/screenshot.png)
+
 > **What the heck is retro board?** The Retrospective Board usually used as a tool during sprint restrospective meeting by a team to carry out a "lessons learned" or "how do you feel?" assessment of the sprint. Usually helds at the end of the sprint period.
 
 This project is heavily inspired by https://www.dragondropcards.com, here I'm trying to replicate the functionalities as much as possible while also adding some cool features that I think would be useful (timer, online users, etc).
@@ -14,9 +16,9 @@ This project is heavily inspired by https://www.dragondropcards.com, here I'm tr
 - [x] Move cards to other column
 - [x] See number of online users
 - [x] A timer to allow users fill-in the board with cards within a specified time limit
-- [ ] Group cards
-- [ ] React to a card (thumbs up or emoji?)
-- [ ] Round robin user selection, user are selected randomly after each other during the session
+- [x] React to a card (thumbs up or emoji?)
+- [ ] Group similar cards
+- [ ] Display user name on who's online list
 - [ ] Persistence layer, currently all data stored in memory
 
 ### Development
