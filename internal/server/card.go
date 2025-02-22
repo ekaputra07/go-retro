@@ -82,7 +82,7 @@ func (b *board) voteCard(msg *model.Message) error {
 	// if vote set, update
 	vote, ok := data["vote"]
 	if ok {
-		v := vote.(int)
+		v := int(vote.(float64))
 		if v != 1 && v != -1 {
 			return fmt.Errorf("vote value of %v is invalid", v)
 		}

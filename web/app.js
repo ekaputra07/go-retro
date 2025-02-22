@@ -115,6 +115,10 @@ function app() {
             }
             this.closeModal('card');
         },
+        voteCard(card, vote) {
+            if(vote !== 1 && vote !== -1) return;
+            this.socket.send(JSON.stringify({type: 'card.vote', data: {id: card.id, vote: vote}}));
+        },
         deleteCard(card) {
             this.socket.send(JSON.stringify({type: 'card.delete', data: {id: card.id}}));
             this.closeModal('card');
