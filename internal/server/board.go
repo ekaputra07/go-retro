@@ -112,6 +112,8 @@ func (b *board) update(msg *model.Message) (bool, error) {
 		return true, b.deleteCard(msg)
 	case model.MessageTypeCardUpdate:
 		return true, b.updateCard(msg)
+	case model.MessageTypeCardVote:
+		return true, b.voteCard(msg)
 	case model.MessageTypeTimerCmd:
 		return false, b.handleTimer(msg)
 	}
