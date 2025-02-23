@@ -17,8 +17,8 @@ This project is heavily inspired by https://www.dragondropcards.com, here I'm tr
 - [x] See number of online users
 - [x] A timer to allow users fill-in the board with cards within a specified time limit
 - [x] React to a card (thumbs up or emoji?)
+- [x] Display user name on who's online list
 - [ ] Group similar cards
-- [ ] Display user name on who's online list
 - [ ] Persistence layer, currently all data stored in memory
 
 ### Development
