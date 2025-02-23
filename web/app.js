@@ -1,10 +1,12 @@
 function app() {
     return {
         socket: null,
+        username: null,
+        openUsernameModal: false,
         openCardModal: false,
         openColumnModal: false,
         openTimerModal: false,
-        boardId: '',
+        users: [],
         columns: [],
         cards: [],
         numPeople: 0,
@@ -25,31 +27,30 @@ function app() {
             display: "00:00",
         },
         initBoard() {
+            this.askUsername();
+        },
+        wsConnect(username) {
             const host = window.location.host;
             const protocol = window.location.protocol;
             const pathname = window.location.pathname;
-            const boardId = pathname.replace('/b/', '');
-            this.boardId = boardId;
 
             const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:';
-            this.socket = new WebSocket(`${wsProtocol}//${host}${pathname}/ws`);
+            this.socket = new WebSocket(`${wsProtocol}//${host}${pathname}/ws?u=${username}`);
             var app = this;
-            this.socket.addEventListener("open", (event) => {
-                app.onWsOpen(event);
+            this.socket.addEventListener("open", (_event) => {
+                console.log(`Connected to WebSocket as ${username}...`);
             });
 
             this.socket.addEventListener("message", (event) => {
                 app.onWsEvent(event);
             });
         },
-        onWsOpen(event) {
-            console.log('Connected to WebSocket...');
-        },
         onWsEvent(event) {
             const e = JSON.parse(event.data);
             switch (e.type) {
                 case 'board.status':
                     this.numPeople = e.data.user_count;
+                    this.users = e.data.users;
                     this.columns = e.data.columns.sort((a, b) => a.order - b.order);
                     this.cards = (e.data.cards || []).sort((a, b) => a.created_at - b.created_at)
                     break;
@@ -63,6 +64,18 @@ function app() {
                         setTimeout(() => this.stopTimer(), 10000);
                     }
             }
+        },
+        askUsername() {
+            this.openUsernameModal = true;
+            setTimeout(() => this.$refs.username.focus(), 200);
+        },
+        joinBoard() {
+            if(this.username == null || this.username == '') {
+                this.askUsername();
+                return;
+            }
+            this.wsConnect(this.username);
+            this.closeModal('username');
         },
         columnNameById(id){
             const column = this.columns.find(c => c.id === id);
@@ -124,6 +137,9 @@ function app() {
             this.closeModal('card');
         },
         closeModal(name) {
+            if(name === 'username') {
+                this.openUsernameModal = false;
+            }
             if(name === 'column') {
                 this.tempColumn.name = '';
                 this.tempColumn.id = '';
@@ -203,6 +219,21 @@ function app() {
         playSound() {
             const audio = new Audio('/static/notif.wav');
             audio.play();
+        },
+        formatUsername(username) {
+            return username.substring(0, 2).toUpperCase();
+        },
+        dispatchCustomEvents(eventName, message) {
+            let customEvent = new CustomEvent(eventName, { detail: { message: message } });
+            window.dispatchEvent(customEvent);
+        },
+        getCookie(name) {
+            let cookie = {};
+            document.cookie.split(';').forEach(function(el) {
+              let split = el.split('=');
+              cookie[split[0].trim()] = split.slice(1).join("=");
+            })
+            return cookie[name];
         }
     }
 }

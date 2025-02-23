@@ -43,6 +43,7 @@ func (ws *WSServer) Start(stop chan struct{}) {
 func (ws *WSServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	boardID := vars["board"]
+	username := r.URL.Query().Get("u")
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -55,7 +56,7 @@ func (ws *WSServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	board := ws.getOrStartBoard(uuid.MustParse(boardID))
 
 	// start user process
-	user := newUser(conn)
+	user := newUser(conn, username)
 	defer func() { board.leave <- user }()
 
 	board.join <- user

@@ -10,6 +10,7 @@ import (
 
 type user struct {
 	ID      uuid.UUID `json:"id"`
+	Name    string    `json:"name"`
 	conn    *websocket.Conn
 	board   *board
 	message chan *model.Message
@@ -53,9 +54,10 @@ func (u *user) stop() {
 	close(u.message)
 }
 
-func newUser(conn *websocket.Conn) *user {
+func newUser(conn *websocket.Conn, name string) *user {
 	return &user{
 		ID:      uuid.New(),
+		Name:    name,
 		conn:    conn,
 		message: make(chan *model.Message),
 	}

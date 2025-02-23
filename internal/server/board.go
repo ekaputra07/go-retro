@@ -121,6 +121,10 @@ func (b *board) update(msg *model.Message) (bool, error) {
 }
 
 func (b *board) broadcastStatus() error {
+	var users []user
+	for u := range b.users {
+		users = append(users, *u)
+	}
 	columns, err := b.db.ListColumn(b.ID)
 	if err != nil {
 		return fmt.Errorf("broadcastStatus failed while fetching columns: %s", err)
@@ -131,9 +135,10 @@ func (b *board) broadcastStatus() error {
 	}
 	msg := &model.Message{
 		Type: model.MessageTypeBoardStatus,
-		Data: map[string]interface{}{
+		Data: map[string]any{
 			"id":         b.ID,
 			"user_count": b.UserCount,
+			"users":      users,
 			"columns":    columns,
 			"cards":      cards,
 		},
