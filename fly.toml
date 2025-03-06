@@ -16,5 +16,8 @@ primary_region = 'sin'
   min_machines_running = 0
   processes = ['app']
 
+[env]
+  GORETRO_SESSION_SECURE = true
+
 [[vm]]
   size = 'shared-cpu-1x'
