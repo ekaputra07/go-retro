@@ -36,8 +36,8 @@ func main() {
 		ReadTimeout:  15 * time.Second,
 	}
 
-	log.Printf("http-server running on %s...", hostPort)
+	log.Printf("web-server running on %s...", hostPort)
 	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
-		log.Fatalf("http-server not started: %v", err)
+		log.Fatalf("web-server not started: %v", err)
 	}
 }

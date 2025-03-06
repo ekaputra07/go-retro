@@ -1,6 +1,6 @@
 # go-retro
 
-Minimalist, real-time and open-source retro board written in Go 😉
+A fun yet minimalist retro board for happy teams 😉
 
 ![screenshot](https://github.com/ekaputra07/go-retro/blob/main/screenshot.png)
 

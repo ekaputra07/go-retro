@@ -192,10 +192,11 @@
 			</div>
 		</div>
 
-		<div class="flex items-center justify-center gap-1 mb-4">
+		<div class="flex items-center justify-center gap-2 mb-4">
 			<template x-for="c in clients" :key="c.id">
-				<div @click="dispatchCustomEvents('flash', c.user.name)" :title="c.user.name" class="relative inline-flex items-center justify-center w-12 h-12 overflow-hidden bg-green-600 hover:bg-green-800 rounded-full border-2 border-white shadow cursor-pointer">
-					<span class="font-medium text-white" x-text="formatUsername(c.user.name)"></span>
+				<div class="flex flex-col items-center justify-center cursor-pointer" @click="dispatchCustomEvents('flash', c.user.name)" :title="c.user.name">
+					<img :src="'/static/avatar/'+c.avatar_id+'.png'" alt="avatar" class="w-12 h-12 rounded-full border-2 border-white shadow-sm" />
+					<span class="font-bold text-sm text-gray-700" x-text="c.user.name"></span>
 				</div>
 			</template>
 		</div>
@@ -206,7 +207,7 @@
 				<!-- <p class="text-xs text-gray-600 text-center"><span x-text="boardId"></span></p> -->
 				<div class="flex items-center gap-1"><span class="flex w-2 h-2 me-4 bg-green-500 rounded-full"></span> <span x-text="(numClients == 1 ? '1 person' : `${numClients} people`) + ' online'"></span></div>
 			</div>
-			<p class="text-xs text-gray-600 text-center hidden md:block"><a href="https://github.com/ekaputra07/go-retro" class="underline" target="_blank">GoRetro</a> - Minimalist open-source retro board for happy teams 😉</p>
+			<p class="text-xs text-gray-600 text-center hidden md:block"><a href="https://github.com/ekaputra07/go-retro" class="underline" target="_blank">GoRetro</a> - A fun yet minimalist retro board for happy teams 😉</p>
 		</div>
 		<!-- /Footer -->
 
@@ -226,7 +227,7 @@
 					<h2 class="font-semibold text-xl mb-6 text-gray-800">Your name</h2>
 					<div class="mb-4">
 						<input type="text" class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-500" x-model="username" x-ref="username" autofocus @keydown.enter="joinBoard()"/>
-						<p class="text-gray-500 text-sm mt-2">Name is used to show who's joining, cards are still anonymous.</p>
+						<p class="text-gray-500 text-sm mt-2">Name used to show who's joining, cards are anonymous.</p>
 					</div>
 					<div class="flex justify-between items-center mt-8 text-right">
 						<div class="flex-1">

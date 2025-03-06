@@ -17,7 +17,7 @@ type BoardManager struct {
 }
 
 func (bm *BoardManager) Start(ctx context.Context) {
-	log.Println("board-manager started")
+	log.Println("board-manager running...")
 	for {
 		select {
 		case b := <-bm.registerBoard:
@@ -27,7 +27,7 @@ func (bm *BoardManager) Start(ctx context.Context) {
 			delete(bm.boards, b)
 			log.Printf("board=%s unregistered", b.ID)
 		case <-ctx.Done():
-			log.Println("board-manager stopped")
+			log.Println("board-manager stopped.")
 			return
 		}
 	}

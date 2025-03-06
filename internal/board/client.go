@@ -2,6 +2,7 @@ package board
 
 import (
 	"log"
+	"math/rand/v2"
 	"time"
 
 	"github.com/ekaputra07/go-retro/internal/model"
@@ -14,6 +15,7 @@ type Client struct {
 	ID       uuid.UUID   `json:"id"`
 	User     *model.User `json:"user"`
 	JoinedAt int64       `json:"joined_at"`
+	AvatarID int         `json:"avatar_id"`
 	board    *Board
 	conn     *websocket.Conn
 	message  chan *model.Message
@@ -62,6 +64,7 @@ func NewClient(conn *websocket.Conn, user *model.User, board *Board) *Client {
 		ID:       uuid.New(),
 		User:     user,
 		JoinedAt: time.Now().Unix(),
+		AvatarID: rand.IntN(11) + 1,
 		board:    board,
 		conn:     conn,
 		message:  make(chan *model.Message),
