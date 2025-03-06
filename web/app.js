@@ -6,10 +6,10 @@ function app() {
         openCardModal: false,
         openColumnModal: false,
         openTimerModal: false,
-        users: [],
+        clients: [],
         columns: [],
         cards: [],
-        numPeople: 0,
+        numClients: 0,
         tempColumn: {
             id: '',
             name: '',
@@ -27,7 +27,8 @@ function app() {
             display: "00:00",
         },
         initBoard() {
-            this.askUsername();
+            this.username = localStorage.getItem('username');
+            this.joinBoard();
         },
         wsConnect(username) {
             const host = window.location.host;
@@ -49,8 +50,10 @@ function app() {
             const e = JSON.parse(event.data);
             switch (e.type) {
                 case 'board.status':
-                    this.numPeople = e.data.user_count;
-                    this.users = e.data.users;
+                    const sortedClients = e.data.clients.sort((a, b) => a.joined_at - b.joined_at);
+                    const uniqueClients = [...new Set(sortedClients.map(c => c.user.id))];
+                    this.numClients = uniqueClients.length;
+                    this.clients = uniqueClients.map(id => sortedClients.find(c => c.user.id === id));
                     this.columns = e.data.columns.sort((a, b) => a.order - b.order);
                     this.cards = (e.data.cards || []).sort((a, b) => a.created_at - b.created_at)
                     break;
@@ -74,6 +77,8 @@ function app() {
                 this.askUsername();
                 return;
             }
+
+            localStorage.setItem('username', this.username);
             this.wsConnect(this.username);
             this.closeModal('username');
         },
@@ -226,14 +231,6 @@ function app() {
         dispatchCustomEvents(eventName, message) {
             let customEvent = new CustomEvent(eventName, { detail: { message: message } });
             window.dispatchEvent(customEvent);
-        },
-        getCookie(name) {
-            let cookie = {};
-            document.cookie.split(';').forEach(function(el) {
-              let split = el.split('=');
-              cookie[split[0].trim()] = split.slice(1).join("=");
-            })
-            return cookie[name];
         }
     }
 }

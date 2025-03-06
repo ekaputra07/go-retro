@@ -1,4 +1,4 @@
-package server
+package board
 
 import (
 	"errors"
@@ -10,17 +10,20 @@ import (
 	"github.com/google/uuid"
 )
 
-type board struct {
-	*model.Board
-	UserCount int `json:"user_count"`
-	ws        *WSServer
-	db        storage.Storage
-	users     map[*user]bool
-	timer     *timer
+// initial columns assigned when the board created
+var defaultColumns = []string{"Good", "Bad", "Questions", "Emoji"}
 
-	// user joined and leaved
-	join  chan *user
-	leave chan *user
+// Board represents a single board instance that can be joined by clients
+type Board struct {
+	*model.Board
+	manager *BoardManager
+	db      storage.Storage
+	clients map[*Client]bool
+	timer   *timer
+
+	// client joined and leaved
+	join  chan *Client
+	leave chan *Client
 
 	// message to broadcast
 	message chan *model.Message
@@ -29,20 +32,30 @@ type board struct {
 	stop chan struct{}
 }
 
-func (b *board) start() {
+// Add adds client to the board
+func (b *Board) Add(client *Client) {
+	b.join <- client
+}
+
+// Remove removes client from board
+func (b *Board) Remove(client *Client) {
+	b.leave <- client
+}
+
+func (b *Board) start() {
 	// start the timer
 	go b.timer.run()
 
 	log.Printf("board=%s started", b.ID)
 	for {
 		select {
-		case user := <-b.join:
-			b.addUser(user)
+		case client := <-b.join:
+			b.addClient(client)
 			b.broadcastStatus()
 			b.broadcastTimer()
 
-		case user := <-b.leave:
-			b.removeUser(user)
+		case client := <-b.leave:
+			b.removeClient(client)
 			b.broadcastStatus()
 
 		case msg := <-b.message:
@@ -68,37 +81,33 @@ func (b *board) start() {
 			}
 
 			// stop and unregister from ws server
-			b.ws.unregisterBoard <- b
+			b.manager.unregisterBoard <- b
 			log.Printf("board=%s stopped", b.ID)
 			return
 		}
 	}
 }
 
-func (b *board) addUser(user *user) {
-	log.Printf("user=%s joined board=%s\n", user.ID, b.ID)
-	b.users[user] = true
-	b.UserCount++
-	user.board = b
+func (b *Board) addClient(client *Client) {
+	log.Printf("client=%s joined board=%s\n", client.ID, b.ID)
+	b.clients[client] = true
 }
 
-func (b *board) removeUser(user *user) {
-	if _, ok := b.users[user]; ok {
-		log.Printf("user=%s leaving board=%s\n", user.ID, b.ID)
+func (b *Board) removeClient(client *Client) {
+	if _, ok := b.clients[client]; ok {
+		log.Printf("client=%s leaving board=%s\n", client.ID, b.ID)
 
-		user.stop()
-		delete(b.users, user)
-		b.UserCount--
+		delete(b.clients, client)
 
-		// if no joined users, stop board
-		if b.UserCount == 0 {
+		// if no joined clients, stop board
+		if len(b.clients) == 0 {
 			close(b.stop)
 		}
 	}
 }
 
 // update the board and broadcast its status if desired by returning `true` in bool output
-func (b *board) update(msg *model.Message) (bool, error) {
+func (b *Board) update(msg *model.Message) (bool, error) {
 	switch msg.Type {
 	case model.MessageTypeColumnNew:
 		return true, b.createColumn(msg)
@@ -120,15 +129,20 @@ func (b *board) update(msg *model.Message) (bool, error) {
 	return false, nil
 }
 
-func (b *board) broadcastStatus() error {
-	var users []user
-	for u := range b.users {
-		users = append(users, *u)
+func (b *Board) broadcastStatus() error {
+	// list clients
+	var clients []*Client
+	for c := range b.clients {
+		clients = append(clients, c)
 	}
+
+	// list columns
 	columns, err := b.db.ListColumn(b.ID)
 	if err != nil {
 		return fmt.Errorf("broadcastStatus failed while fetching columns: %s", err)
 	}
+
+	// list cards
 	cards, err := b.db.ListCard(b.ID)
 	if err != nil {
 		return fmt.Errorf("broadcastStatus failed while fetching cards: %s", err)
@@ -136,62 +150,60 @@ func (b *board) broadcastStatus() error {
 	msg := &model.Message{
 		Type: model.MessageTypeBoardStatus,
 		Data: map[string]any{
-			"id":         b.ID,
-			"user_count": b.UserCount,
-			"users":      users,
-			"columns":    columns,
-			"cards":      cards,
+			"id":      b.ID,
+			"clients": clients,
+			"columns": columns,
+			"cards":   cards,
 		},
 	}
-	for u := range b.users {
+	for u := range b.clients {
 		u.message <- msg
 	}
 	return nil
 }
 
-func (b *board) broadcastTimer() {
+func (b *Board) broadcastTimer() {
 	msg := &model.Message{
 		Type: model.MessageTypeTimerState,
 		Data: b.timer,
 	}
-	for u := range b.users {
+	for u := range b.clients {
 		u.message <- msg
 	}
 }
 
-func getOrCreateBoard(id uuid.UUID, ws *WSServer) (*board, error) {
-	b, err := ws.db.GetBoard(id)
+func getOrCreateBoard(id uuid.UUID, manager *BoardManager) (*Board, error) {
+	b, err := manager.db.GetBoard(id)
 
 	// if board not in DB, create new one
 	if err != nil {
 		// these store operation should run in transaction
-		b, err = ws.db.CreateBoard(id)
+		b, err = manager.db.CreateBoard(id)
 		if err != nil {
 			return nil, err
 		}
 		for _, c := range defaultColumns {
-			_, err := ws.db.CreateColumn(c, b.ID)
+			_, err := manager.db.CreateColumn(c, b.ID)
 			if err != nil {
 				return nil, err
 			}
 		}
 	}
 
-	return &board{
-		Board:     b,
-		UserCount: 0,
-		ws:        ws,
-		db:        ws.db,
-		users:     make(map[*user]bool),
-		join:      make(chan *user),
-		leave:     make(chan *user),
-		message:   make(chan *model.Message),
-		stop:      make(chan struct{}),
-		timer:     newTimer(),
+	return &Board{
+		Board:   b,
+		manager: manager,
+		db:      manager.db,
+		clients: make(map[*Client]bool),
+		join:    make(chan *Client),
+		leave:   make(chan *Client),
+		message: make(chan *model.Message),
+		stop:    make(chan struct{}),
+		timer:   newTimer(),
 	}, nil
 }
 
-func (b *board) handleTimer(msg *model.Message) error {
+func (b *Board) handleTimer(msg *model.Message) error {
 	data := msg.Data.(map[string]any)
 	cmdAny, ok := data["cmd"]
 	if !ok {

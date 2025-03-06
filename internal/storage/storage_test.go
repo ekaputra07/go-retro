@@ -10,6 +10,10 @@ import (
 var boardID = uuid.New()
 
 func testStorageImpl(t *testing.T, init func() Storage) {
+	// user
+	testCreateUser(t, init)
+	testGetUser(t, init)
+	testUpdateUser(t, init)
 	// board
 	testListBoard(t, init)
 	testCreateBoard(t, init)
@@ -27,6 +31,29 @@ func testStorageImpl(t *testing.T, init func() Storage) {
 	testGetCard(t, init)
 	testUpdateCard(t, init)
 	testDeleteCard(t, init)
+}
+
+func testCreateUser(t *testing.T, init func() Storage) {
+	s := init()
+	_, err := s.CreateUser()
+	assert.NoError(t, err)
+}
+
+func testGetUser(t *testing.T, init func() Storage) {
+	s := init()
+	u, err := s.CreateUser()
+
+	_, err = s.GetUser(u.ID)
+	assert.NoError(t, err)
+}
+
+func testUpdateUser(t *testing.T, init func() Storage) {
+	s := init()
+	u, err := s.CreateUser()
+	u.Name = "New Name"
+
+	err = s.UpdateUser(u)
+	assert.NoError(t, err)
 }
 
 func testListBoard(t *testing.T, init func() Storage) {

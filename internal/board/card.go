@@ -1,4 +1,4 @@
-package server
+package board
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (b *board) createCard(msg *model.Message) error {
+func (b *Board) createCard(msg *model.Message) error {
 	data := msg.Data.(map[string]any)
 	name, ok := data["name"]
 	if !ok {
@@ -26,7 +26,7 @@ func (b *board) createCard(msg *model.Message) error {
 	return err
 }
 
-func (b *board) deleteCard(msg *model.Message) error {
+func (b *Board) deleteCard(msg *model.Message) error {
 	data := msg.Data.(map[string]any)
 	id, ok := data["id"]
 	if !ok {
@@ -35,7 +35,7 @@ func (b *board) deleteCard(msg *model.Message) error {
 	return b.db.DeleteCard(uuid.MustParse(id.(string)))
 }
 
-func (b *board) updateCard(msg *model.Message) error {
+func (b *Board) updateCard(msg *model.Message) error {
 	data := msg.Data.(map[string]any)
 
 	// get card
@@ -66,7 +66,7 @@ func (b *board) updateCard(msg *model.Message) error {
 	return b.db.UpdateCard(card)
 }
 
-func (b *board) voteCard(msg *model.Message) error {
+func (b *Board) voteCard(msg *model.Message) error {
 	data := msg.Data.(map[string]any)
 
 	// get card

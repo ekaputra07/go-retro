@@ -1,4 +1,4 @@
-package server
+package board
 
 import (
 	"errors"
@@ -7,9 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var defaultColumns = []string{"Good", "Bad", "Questions"}
-
-func (b *board) createColumn(msg *model.Message) error {
+func (b *Board) createColumn(msg *model.Message) error {
 	data := msg.Data.(map[string]any)
 	name, ok := data["name"]
 	if !ok {
@@ -19,7 +17,7 @@ func (b *board) createColumn(msg *model.Message) error {
 	return err
 }
 
-func (b *board) deleteColumn(msg *model.Message) error {
+func (b *Board) deleteColumn(msg *model.Message) error {
 	data := msg.Data.(map[string]any)
 	id, ok := data["id"]
 	if !ok {
@@ -28,7 +26,7 @@ func (b *board) deleteColumn(msg *model.Message) error {
 	return b.db.DeleteColumn(uuid.MustParse(id.(string)))
 }
 
-func (b *board) updateColumn(msg *model.Message) error {
+func (b *Board) updateColumn(msg *model.Message) error {
 	data := msg.Data.(map[string]any)
 
 	// get column
