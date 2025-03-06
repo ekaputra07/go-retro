@@ -9,6 +9,7 @@ import (
 )
 
 type MemoryStore struct {
+	users   sync.Map
 	boards  sync.Map
 	columns sync.Map
 	cards   sync.Map
@@ -19,11 +20,35 @@ type MemoryStore struct {
 
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
+		users:           sync.Map{},
 		boards:          sync.Map{},
 		columns:         sync.Map{},
 		cards:           sync.Map{},
 		columnsMaxOrder: 0,
 	}
+}
+
+func (m *MemoryStore) CreateUser() (*model.User, error) {
+	u := model.NewUser()
+	m.users.Store(u.ID, u)
+	return u, nil
+}
+
+func (m *MemoryStore) GetUser(id uuid.UUID) (*model.User, error) {
+	u, ok := m.users.Load(id)
+	if !ok {
+		return nil, fmt.Errorf("user id=%s does not exist", id)
+	}
+	return u.(*model.User), nil
+}
+
+func (m *MemoryStore) UpdateUser(user *model.User) error {
+	_, ok := m.users.Load(user.ID)
+	if !ok {
+		return fmt.Errorf("user id=%s does not exist", user.ID)
+	}
+	m.users.Store(user.ID, user)
+	return nil
 }
 
 func (m *MemoryStore) ListBoard() ([]*model.Board, error) {

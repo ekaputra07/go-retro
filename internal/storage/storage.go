@@ -6,6 +6,11 @@ import (
 )
 
 type Storage interface {
+	// user
+	CreateUser() (*model.User, error)
+	GetUser(id uuid.UUID) (*model.User, error)
+	UpdateUser(user *model.User) error
+
 	// board
 	ListBoard() ([]*model.Board, error)
 	CreateBoard(id uuid.UUID) (*model.Board, error)

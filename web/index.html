@@ -193,9 +193,9 @@
 		</div>
 
 		<div class="flex items-center justify-center gap-1 mb-4">
-			<template x-for="u in users" :key="u.id">
-				<div @click="dispatchCustomEvents('flash', u.name)" :title="u.name" class="relative inline-flex items-center justify-center w-12 h-12 overflow-hidden bg-green-600 hover:bg-green-800 rounded-full border-2 border-white shadow cursor-pointer">
-					<span class="font-medium text-white" x-text="formatUsername(u.name)"></span>
+			<template x-for="c in clients" :key="c.id">
+				<div @click="dispatchCustomEvents('flash', c.user.name)" :title="c.user.name" class="relative inline-flex items-center justify-center w-12 h-12 overflow-hidden bg-green-600 hover:bg-green-800 rounded-full border-2 border-white shadow cursor-pointer">
+					<span class="font-medium text-white" x-text="formatUsername(c.user.name)"></span>
 				</div>
 			</template>
 		</div>
@@ -204,7 +204,7 @@
 		<div class="flex justify-between items-center bg-white px-4 py-1 shadow text-xs text-gray-600 text-center">
 			<div class="flex justify-between md:justify-start items-center gap-2 flex-1">
 				<!-- <p class="text-xs text-gray-600 text-center"><span x-text="boardId"></span></p> -->
-				<div class="flex items-center gap-1"><span class="flex w-2 h-2 me-4 bg-green-500 rounded-full"></span> <span x-text="(numPeople == 1 ? '1 person' : `${numPeople} people`) + ' online'"></span></div>
+				<div class="flex items-center gap-1"><span class="flex w-2 h-2 me-4 bg-green-500 rounded-full"></span> <span x-text="(numClients == 1 ? '1 person' : `${numClients} people`) + ' online'"></span></div>
 			</div>
 			<p class="text-xs text-gray-600 text-center hidden md:block"><a href="https://github.com/ekaputra07/go-retro" class="underline" target="_blank">GoRetro</a> - Minimalist open-source retro board for happy teams 😉</p>
 		</div>

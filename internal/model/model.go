@@ -26,6 +26,20 @@ type Message struct {
 	Data any         `json:"data"`
 }
 
+// User holds information the person that join the board.
+// Users are not bounded to specific board but are global entities.
+// Allowed to join multiple boards OR join a single board through multiple connection (client)
+type User struct {
+	ID   uuid.UUID `json:"id"`
+	Name string    `json:"name"`
+}
+
+func NewUser() *User {
+	return &User{
+		ID: uuid.New(),
+	}
+}
+
 type Board struct {
 	ID        uuid.UUID `json:"id"`
 	CreatedAt int64     `json:"created_at"`
