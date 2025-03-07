@@ -212,7 +212,7 @@ func (b *Board) notificationMessage(msg string, exclude *Client) *message {
 
 	return &message{
 		client: exclude,
-		Type:   messageTypeNotificationNotification,
+		Type:   messageTypeBoardNotification,
 		Data:   msg,
 	}
 }

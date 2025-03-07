@@ -4,18 +4,18 @@ package board
 type messageType string
 
 const (
-	messageTypeBoardUsers               messageType = "board.users"
-	messageTypeBoardStatus              messageType = "board.status"
-	messageTypeNotificationNotification messageType = "board.notification"
-	messageTypeColumnNew                messageType = "column.new"
-	messageTypeColumnUpdate             messageType = "column.update"
-	messageTypeColumnDelete             messageType = "column.delete"
-	messageTypeCardNew                  messageType = "card.new"
-	messageTypeCardUpdate               messageType = "card.update"
-	messageTypeCardDelete               messageType = "card.delete"
-	messageTypeCardVote                 messageType = "card.vote"
-	messageTypeTimerCmd                 messageType = "timer.cmd"
-	messageTypeTimerState               messageType = "timer.state"
+	messageTypeBoardUsers        messageType = "board.users"
+	messageTypeBoardStatus       messageType = "board.status"
+	messageTypeBoardNotification messageType = "board.notification"
+	messageTypeColumnNew         messageType = "column.new"
+	messageTypeColumnUpdate      messageType = "column.update"
+	messageTypeColumnDelete      messageType = "column.delete"
+	messageTypeCardNew           messageType = "card.new"
+	messageTypeCardUpdate        messageType = "card.update"
+	messageTypeCardDelete        messageType = "card.delete"
+	messageTypeCardVote          messageType = "card.vote"
+	messageTypeTimerCmd          messageType = "timer.cmd"
+	messageTypeTimerState        messageType = "timer.state"
 )
 
 // message represents a message that can be sent to and from the client
