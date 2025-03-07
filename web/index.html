@@ -6,9 +6,9 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 	<!-- Primary Meta Tags -->
-	<title>GoRetro - Minimalist open-source retro board for happy teams 😉</title>
+	<title>GoRetro - A minimalist yet fun retro board for happy teams 😉</title>
 	<meta name="title" content="GoRetro" />
-	<meta name="description" content="Minimalist open-source retro board for happy teams 😉" />
+	<meta name="description" content="A minimalist yet fun retro board for happy teams 😉" />
 	<link rel="stylesheet" href="/static/tailwind.css">
 	<script src="/static/alpine.js" defer></script>
 	<script src="/static/app.js"></script>
@@ -192,7 +192,7 @@
 			</div>
 		</div>
 
-		<div class="flex items-center justify-center gap-2 mb-4">
+		<div class="flex items-center justify-center gap-2 mb-4" x-ignore>
 			<template x-for="c in clients" :key="c.id">
 				<div class="flex flex-col items-center justify-center cursor-pointer" @click="dispatchCustomEvents('flash', c.user.name)" :title="c.user.name">
 					<img :src="'/static/avatar/'+c.avatar_id+'.png'" alt="avatar" class="w-12 h-12 rounded-full border-2 border-white shadow-sm" />
@@ -207,7 +207,7 @@
 				<!-- <p class="text-xs text-gray-600 text-center"><span x-text="boardId"></span></p> -->
 				<div class="flex items-center gap-1"><span class="flex w-2 h-2 me-4 bg-green-500 rounded-full"></span> <span x-text="(numClients == 1 ? '1 person' : `${numClients} people`) + ' online'"></span></div>
 			</div>
-			<p class="text-xs text-gray-600 text-center hidden md:block"><a href="https://github.com/ekaputra07/go-retro" class="underline" target="_blank">GoRetro</a> - A fun yet minimalist retro board for happy teams 😉</p>
+			<p class="text-xs text-gray-600 text-center hidden md:block"><a href="https://github.com/ekaputra07/go-retro" class="underline" target="_blank">GoRetro</a> - A minimalist yet fun retro board for happy teams 😉</p>
 		</div>
 		<!-- /Footer -->
 

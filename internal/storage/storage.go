@@ -1,33 +1,32 @@
 package storage
 
 import (
-	"github.com/ekaputra07/go-retro/internal/model"
 	"github.com/google/uuid"
 )
 
 type Storage interface {
 	// user
-	CreateUser() (*model.User, error)
-	GetUser(id uuid.UUID) (*model.User, error)
-	UpdateUser(user *model.User) error
+	CreateUser() (*User, error)
+	GetUser(id uuid.UUID) (*User, error)
+	UpdateUser(user *User) error
 
 	// board
-	ListBoard() ([]*model.Board, error)
-	CreateBoard(id uuid.UUID) (*model.Board, error)
-	GetBoard(id uuid.UUID) (*model.Board, error)
+	ListBoard() ([]*Board, error)
+	CreateBoard(id uuid.UUID) (*Board, error)
+	GetBoard(id uuid.UUID) (*Board, error)
 	DeleteBoard(id uuid.UUID) error
 
 	// column
-	ListColumn(boardID uuid.UUID) ([]*model.Column, error)
-	CreateColumn(name string, boardID uuid.UUID) (*model.Column, error)
-	GetColumn(id uuid.UUID) (*model.Column, error)
-	UpdateColumn(column *model.Column) error
+	ListColumn(boardID uuid.UUID) ([]*Column, error)
+	CreateColumn(name string, boardID uuid.UUID) (*Column, error)
+	GetColumn(id uuid.UUID) (*Column, error)
+	UpdateColumn(column *Column) error
 	DeleteColumn(id uuid.UUID) error
 
 	// card
-	ListCard(boardID uuid.UUID) ([]*model.Card, error)
-	CreateCard(name string, boardID, columnID uuid.UUID) (*model.Card, error)
-	GetCard(id uuid.UUID) (*model.Card, error)
-	UpdateCard(card *model.Card) error
+	ListCard(boardID uuid.UUID) ([]*Card, error)
+	CreateCard(name string, boardID, columnID uuid.UUID) (*Card, error)
+	GetCard(id uuid.UUID) (*Card, error)
+	UpdateCard(card *Card) error
 	DeleteCard(id uuid.UUID) error
 }

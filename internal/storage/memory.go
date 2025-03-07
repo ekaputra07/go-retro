@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ekaputra07/go-retro/internal/model"
 	"github.com/google/uuid"
 )
 
@@ -28,21 +27,21 @@ func NewMemoryStore() *MemoryStore {
 	}
 }
 
-func (m *MemoryStore) CreateUser() (*model.User, error) {
-	u := model.NewUser()
+func (m *MemoryStore) CreateUser() (*User, error) {
+	u := NewUser()
 	m.users.Store(u.ID, u)
 	return u, nil
 }
 
-func (m *MemoryStore) GetUser(id uuid.UUID) (*model.User, error) {
+func (m *MemoryStore) GetUser(id uuid.UUID) (*User, error) {
 	u, ok := m.users.Load(id)
 	if !ok {
 		return nil, fmt.Errorf("user id=%s does not exist", id)
 	}
-	return u.(*model.User), nil
+	return u.(*User), nil
 }
 
-func (m *MemoryStore) UpdateUser(user *model.User) error {
+func (m *MemoryStore) UpdateUser(user *User) error {
 	_, ok := m.users.Load(user.ID)
 	if !ok {
 		return fmt.Errorf("user id=%s does not exist", user.ID)
@@ -51,29 +50,29 @@ func (m *MemoryStore) UpdateUser(user *model.User) error {
 	return nil
 }
 
-func (m *MemoryStore) ListBoard() ([]*model.Board, error) {
-	var boards []*model.Board
+func (m *MemoryStore) ListBoard() ([]*Board, error) {
+	var boards []*Board
 	m.boards.Range(func(_, b any) bool {
-		board := b.(*model.Board)
+		board := b.(*Board)
 		boards = append(boards, board)
 		return true
 	})
 	return boards, nil
 }
 
-func (m *MemoryStore) CreateBoard(id uuid.UUID) (*model.Board, error) {
+func (m *MemoryStore) CreateBoard(id uuid.UUID) (*Board, error) {
 	if _, ok := m.boards.Load(id); ok {
 		return nil, fmt.Errorf("board with id=%s already exist", id)
 	}
 
-	b := model.NewBoard(id)
+	b := NewBoard(id)
 	m.boards.Store(b.ID, b)
 	return b, nil
 }
 
-func (m *MemoryStore) GetBoard(id uuid.UUID) (*model.Board, error) {
+func (m *MemoryStore) GetBoard(id uuid.UUID) (*Board, error) {
 	if b, ok := m.boards.Load(id); ok {
-		return b.(*model.Board), nil
+		return b.(*Board), nil
 	}
 	return nil, fmt.Errorf("board with id=%s doesn't exist", id)
 }
@@ -86,10 +85,10 @@ func (m *MemoryStore) DeleteBoard(id uuid.UUID) error {
 	return fmt.Errorf("board with id=%s doesn't exist", id)
 }
 
-func (m *MemoryStore) ListColumn(boardID uuid.UUID) ([]*model.Column, error) {
-	var columns []*model.Column
+func (m *MemoryStore) ListColumn(boardID uuid.UUID) ([]*Column, error) {
+	var columns []*Column
 	m.columns.Range(func(_, c any) bool {
-		col := c.(*model.Column)
+		col := c.(*Column)
 		if col.BoardID == boardID {
 			columns = append(columns, col)
 		}
@@ -99,25 +98,25 @@ func (m *MemoryStore) ListColumn(boardID uuid.UUID) ([]*model.Column, error) {
 	return columns, nil
 }
 
-func (m *MemoryStore) CreateColumn(name string, boardID uuid.UUID) (*model.Column, error) {
+func (m *MemoryStore) CreateColumn(name string, boardID uuid.UUID) (*Column, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	// auto-increment ordering
 	m.columnsMaxOrder++
-	c := model.NewColumn(name, m.columnsMaxOrder, boardID)
+	c := NewColumn(name, m.columnsMaxOrder, boardID)
 	m.columns.Store(c.ID, c)
 	return c, nil
 }
 
-func (m *MemoryStore) GetColumn(id uuid.UUID) (*model.Column, error) {
+func (m *MemoryStore) GetColumn(id uuid.UUID) (*Column, error) {
 	if c, ok := m.columns.Load(id); ok {
-		return c.(*model.Column), nil
+		return c.(*Column), nil
 	}
 	return nil, fmt.Errorf("column with id=%s doesn't exist", id)
 }
 
-func (m *MemoryStore) UpdateColumn(column *model.Column) error {
+func (m *MemoryStore) UpdateColumn(column *Column) error {
 	m.columns.Store(column.ID, column)
 	return nil
 }
@@ -130,10 +129,10 @@ func (m *MemoryStore) DeleteColumn(id uuid.UUID) error {
 	return fmt.Errorf("column with id=%s doesn't exist", id)
 }
 
-func (m *MemoryStore) ListCard(boardID uuid.UUID) ([]*model.Card, error) {
-	var cards []*model.Card
+func (m *MemoryStore) ListCard(boardID uuid.UUID) ([]*Card, error) {
+	var cards []*Card
 	m.cards.Range(func(_, c any) bool {
-		card := c.(*model.Card)
+		card := c.(*Card)
 		if card.BoardID == boardID {
 			cards = append(cards, card)
 		}
@@ -143,20 +142,20 @@ func (m *MemoryStore) ListCard(boardID uuid.UUID) ([]*model.Card, error) {
 	return cards, nil
 }
 
-func (m *MemoryStore) CreateCard(name string, boardID, columnID uuid.UUID) (*model.Card, error) {
-	c := model.NewCard(name, boardID, columnID)
+func (m *MemoryStore) CreateCard(name string, boardID, columnID uuid.UUID) (*Card, error) {
+	c := NewCard(name, boardID, columnID)
 	m.cards.Store(c.ID, c)
 	return c, nil
 }
 
-func (m *MemoryStore) GetCard(id uuid.UUID) (*model.Card, error) {
+func (m *MemoryStore) GetCard(id uuid.UUID) (*Card, error) {
 	if c, ok := m.cards.Load(id); ok {
-		return c.(*model.Card), nil
+		return c.(*Card), nil
 	}
 	return nil, fmt.Errorf("card with id=%s doesn't exist", id)
 }
 
-func (m *MemoryStore) UpdateCard(card *model.Card) error {
+func (m *MemoryStore) UpdateCard(card *Card) error {
 	m.cards.Store(card.ID, card)
 	return nil
 }

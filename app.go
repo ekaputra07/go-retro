@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/gob"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,6 +16,10 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/gorilla/websocket"
 )
+
+func init() {
+	gob.Register(uuid.UUID{})
+}
 
 const SESSION_NAME = "goretro_session"
 
@@ -82,8 +87,8 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 	if session.IsNew {
 		createUser = true
 	} else {
-		userID := session.Values["user_id"].(string)
-		if _, err := a.db.GetUser(uuid.MustParse(userID)); err != nil {
+		userID := session.Values["user_id"].(uuid.UUID)
+		if _, err := a.db.GetUser(userID); err != nil {
 			createUser = true
 		}
 	}
@@ -95,7 +100,7 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		session.Values["user_id"] = u.ID.String()
+		session.Values["user_id"] = u.ID
 		if err := session.Save(r, w); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -104,16 +109,15 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.ServeFile(w, r, "web/index.html")
-	return
 }
 
 func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	// validate session (make sure user is present) before upgrading the connection
 	// TODO: Move this check to a middleware
 	session, _ := a.session.Get(r, SESSION_NAME)
-	userID := session.Values["user_id"]
+	userID := session.Values["user_id"].(uuid.UUID)
 
-	user, err := a.db.GetUser(uuid.MustParse(userID.(string)))
+	user, err := a.db.GetUser(userID)
 	if err != nil {
 		http.Error(w, "unauthorized access", http.StatusUnauthorized)
 		return
@@ -124,11 +128,13 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	boardID := vars["board"]
 	username := r.URL.Query().Get("u")
 
-	// update name
-	user.Name = username
-	if err = a.db.UpdateUser(user); err != nil {
-		http.Error(w, "server error", http.StatusInternalServerError)
-		return
+	// update name if different
+	if user.Name != username {
+		user.Name = username
+		if err = a.db.UpdateUser(user); err != nil {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -142,10 +148,10 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	b := a.manager.GetOrStartBoard(uuid.MustParse(boardID))
 	// create client and add to board
 	client := board.NewClient(conn, user, b)
-	b.Add(client)
+	b.AddClient(client)
 
 	defer client.Stop()
-	defer b.Remove(client)
+	defer b.RemoveClient(client)
 
 	client.Start()
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/ekaputra07/go-retro/internal/model"
 	"github.com/ekaputra07/go-retro/internal/storage"
 	"github.com/google/uuid"
 )
@@ -15,7 +14,7 @@ var defaultColumns = []string{"Good", "Bad", "Questions", "Emoji"}
 
 // Board represents a single board instance that can be joined by clients
 type Board struct {
-	*model.Board
+	*storage.Board
 	manager *BoardManager
 	db      storage.Storage
 	clients map[*Client]bool
@@ -26,43 +25,56 @@ type Board struct {
 	leave chan *Client
 
 	// message to broadcast
-	message chan *Message
+	message chan *message
 
 	// to stop the board
 	stop chan struct{}
 }
 
 // Add adds client to the board
-func (b *Board) Add(client *Client) {
+func (b *Board) AddClient(client *Client) {
 	b.join <- client
 }
 
 // Remove removes client from board
-func (b *Board) Remove(client *Client) {
+func (b *Board) RemoveClient(client *Client) {
 	b.leave <- client
 }
 
-func (b *Board) start() {
+// Start starts the board and board's timer
+func (b *Board) Start() {
+	log.Printf("board=%s started", b.ID)
+
 	// start the timer
 	go b.timer.run()
 
-	log.Printf("board=%s started", b.ID)
+	// listen to board events
+	go b.listen()
+}
+
+func (b *Board) listen() {
 	for {
 		select {
 		case client := <-b.join:
 			b.addClient(client)
-			msgs := []*Message{
+
+			// broadcast board status, timer state and join notification
+			msgs := []*message{
+				b.usersStateMessage(),
 				b.boardStateMessage(),
 				b.timerStateMessage(),
-				b.notificationMessage(client, fmt.Sprintf("%s joined", client.User.Name)),
+				b.notificationMessage(fmt.Sprintf("%s joined", client.User.Name), client),
 			}
 			b.broadcast(msgs)
 
 		case client := <-b.leave:
 			b.removeClient(client)
-			msgs := []*Message{
+
+			// broadcast board status and leave notification
+			msgs := []*message{
+				b.usersStateMessage(),
 				b.boardStateMessage(),
-				b.notificationMessage(client, fmt.Sprintf("%s leave", client.User.Name)),
+				b.notificationMessage(fmt.Sprintf("%s leave", client.User.Name), client),
 			}
 			b.broadcast(msgs)
 
@@ -72,15 +84,18 @@ func (b *Board) start() {
 				log.Printf("updating board=%s failed: %s", b.ID, err)
 				continue
 			}
+
+			// broadcast board status if update is successful
 			if broadcast {
-				msgs := []*Message{b.boardStateMessage()}
+				msgs := []*message{b.boardStateMessage()}
 				b.broadcast(msgs)
 			}
 
 		case t := <-b.timer.state:
-			msgs := []*Message{
+			// broadcast timer state and notify timer state change
+			msgs := []*message{
 				b.timerStateMessage(),
-				b.notificationMessage(t.lastCommandClient, t.statusMessage),
+				b.notificationMessage(t.statusMessage, t.lastCommandClient),
 			}
 			b.broadcast(msgs)
 
@@ -92,7 +107,7 @@ func (b *Board) start() {
 			}
 
 			// stop and unregister from ws server
-			b.manager.unregisterBoard <- b
+			b.manager.unregisterChan <- b
 			log.Printf("board=%s stopped", b.ID)
 			return
 		}
@@ -118,35 +133,45 @@ func (b *Board) removeClient(client *Client) {
 }
 
 // update the board and broadcast its status if desired
-func (b *Board) update(msg *Message) (bool, error) {
+// (bool, error) --> (broadcast?, error)
+func (b *Board) update(msg *message) (bool, error) {
 	switch msg.Type {
-	case MessageTypeColumnNew:
+	case messageTypeColumnNew:
 		return true, b.createColumn(msg)
-	case MessageTypeColumnDelete:
+	case messageTypeColumnDelete:
 		return true, b.deleteColumn(msg)
-	case MessageTypeColumnUpdate:
+	case messageTypeColumnUpdate:
 		return true, b.updateColumn(msg)
-	case MessageTypeCardNew:
+	case messageTypeCardNew:
 		return true, b.createCard(msg)
-	case MessageTypeCardDelete:
+	case messageTypeCardDelete:
 		return true, b.deleteCard(msg)
-	case MessageTypeCardUpdate:
+	case messageTypeCardUpdate:
 		return true, b.updateCard(msg)
-	case MessageTypeCardVote:
+	case messageTypeCardVote:
 		return true, b.voteCard(msg)
-	case MessageTypeTimerCmd:
-		return false, b.handleTimer(msg)
+	case messageTypeTimerCmd:
+		return false, b.handleTimerCommand(msg)
 	}
 	return false, nil
 }
 
-func (b *Board) boardStateMessage() *Message {
-	// list clients
+// usersStateMessage builds and returns the users state message
+func (b *Board) usersStateMessage() *message {
+	// clients map to slice
 	var clients []*Client
 	for c := range b.clients {
 		clients = append(clients, c)
 	}
 
+	return &message{
+		Type: messageTypeBoardUsers,
+		Data: clients,
+	}
+}
+
+// boardStateMessage builds and returns the board status message
+func (b *Board) boardStateMessage() *message {
 	// list columns
 	columns, err := b.db.ListColumn(b.ID)
 	if err != nil {
@@ -160,11 +185,10 @@ func (b *Board) boardStateMessage() *Message {
 		log.Printf("broadcastBoardState failed while fetching cards: %s", err)
 		return nil
 	}
-	return &Message{
-		Type: MessageTypeBoardStatus,
+	return &message{
+		Type: messageTypeBoardStatus,
 		Data: map[string]any{
 			"id":      b.ID,
-			"clients": clients,
 			"columns": columns,
 			"cards":   cards,
 		},
@@ -172,26 +196,29 @@ func (b *Board) boardStateMessage() *Message {
 
 }
 
-func (b *Board) timerStateMessage() *Message {
-	return &Message{
-		Type: MessageTypeTimerState,
+// timerStateMessage builds and returns the timer state message
+func (b *Board) timerStateMessage() *message {
+	return &message{
+		Type: messageTypeTimerState,
 		Data: b.timer,
 	}
 }
 
-func (b *Board) notificationMessage(client *Client, msg string) *Message {
+// notificationMessage builds and returns the notification message
+func (b *Board) notificationMessage(msg string, exclude *Client) *message {
 	if msg == "" {
 		return nil
 	}
 
-	return &Message{
-		client: client,
-		Type:   MessageTypeNotification,
+	return &message{
+		client: exclude,
+		Type:   messageTypeNotificationNotification,
 		Data:   msg,
 	}
 }
 
-func (b *Board) broadcast(msgs []*Message) {
+// broadcast sends messages to all clients
+func (b *Board) broadcast(msgs []*message) {
 	for c := range b.clients {
 		for _, m := range msgs {
 			if m != nil {
@@ -201,6 +228,7 @@ func (b *Board) broadcast(msgs []*Message) {
 	}
 }
 
+// getOrCreateBoard returns a board instance by ID, if not exist, it will create a new board
 func getOrCreateBoard(id uuid.UUID, manager *BoardManager) (*Board, error) {
 	b, err := manager.db.GetBoard(id)
 
@@ -226,17 +254,18 @@ func getOrCreateBoard(id uuid.UUID, manager *BoardManager) (*Board, error) {
 		clients: make(map[*Client]bool),
 		join:    make(chan *Client),
 		leave:   make(chan *Client),
-		message: make(chan *Message),
+		message: make(chan *message),
 		stop:    make(chan struct{}),
 		timer:   newTimer(),
 	}, nil
 }
 
-func (b *Board) handleTimer(msg *Message) error {
+// handleTimerCommand handles timer command message
+func (b *Board) handleTimerCommand(msg *message) error {
 	data := msg.Data.(map[string]any)
 	cmdAny, ok := data["cmd"]
 	if !ok {
-		return errors.New("handleTimer payload missing `cmd` field")
+		return errors.New("handleTimerCommand payload missing `cmd` field")
 	}
 	cmd := timerCmd{cmd: cmdAny.(string), client: msg.client}
 
