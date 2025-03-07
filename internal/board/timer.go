@@ -16,8 +16,9 @@ const (
 )
 
 type timerCmd struct {
-	cmd   string
-	value string
+	cmd    string
+	value  string
+	client *Client
 }
 
 func (tc timerCmd) is(cmd string) bool {
@@ -25,12 +26,14 @@ func (tc timerCmd) is(cmd string) bool {
 }
 
 type timer struct {
-	Status   timerStatus `json:"status"`
-	Display  string      `json:"display"`
-	duration time.Duration
-	elapsed  time.Duration
-	cmd      chan timerCmd
-	state    chan *timer
+	Status            timerStatus `json:"status"`
+	Display           string      `json:"display"`
+	duration          time.Duration
+	elapsed           time.Duration
+	cmd               chan timerCmd
+	state             chan *timer
+	statusMessage     string
+	lastCommandClient *Client
 }
 
 func (t *timer) updateDisplay() {
@@ -57,8 +60,14 @@ func (t *timer) run() {
 				t.updateDisplay()
 				t.state <- t
 			}
+			// reset status message after tick
+			t.lastCommandClient = nil
+			t.statusMessage = ""
+
 		case cmd := <-t.cmd:
-			if cmd.is("start") && t.Status == timerStatusStopped {
+			t.lastCommandClient = cmd.client
+
+			if cmd.is("start") && (t.Status == timerStatusStopped || t.Status == timerStatusDone) {
 				d, err := time.ParseDuration(cmd.value)
 				if err != nil {
 					log.Printf("unable to parse timer duration: %v", err)
@@ -68,11 +77,13 @@ func (t *timer) run() {
 				t.elapsed = 0
 				t.Status = timerStatusRunning
 				t.updateDisplay()
+				t.statusMessage = fmt.Sprintf("%s started the timer", cmd.client.User.Name)
 				t.state <- t
 				log.Println("timer running")
 
 			} else if cmd.is("start") && t.Status == timerStatusPaused {
 				t.Status = timerStatusRunning
+				t.statusMessage = fmt.Sprintf("%s resumed the timer", cmd.client.User.Name)
 				t.state <- t
 				log.Println("timer resumed")
 
@@ -80,10 +91,12 @@ func (t *timer) run() {
 				t.Status = timerStatusStopped
 				t.duration = 0
 				t.elapsed = 0
+				t.statusMessage = fmt.Sprintf("%s stoped the timer", cmd.client.User.Name)
 				t.state <- t
 				log.Println("timer stopped")
 
 			} else if cmd.is("pause") {
+				t.statusMessage = fmt.Sprintf("%s paused the timer", cmd.client.User.Name)
 				t.Status = timerStatusPaused
 				t.state <- t
 				log.Println("timer paused")

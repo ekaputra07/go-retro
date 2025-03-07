@@ -64,8 +64,14 @@ function app() {
                     this.timer.display = e.data.display;
                     if(this.timer.done) {
                         this.playSound();
-                        setTimeout(() => this.stopTimer(), 10000);
+                        setTimeout(() => this.stopTimer(false), 10000);
                     }
+                    break;
+                case 'notification':
+                    this.dispatchCustomEvents('flash', e.data);
+                    break;
+                default:
+                    break;
             }
         },
         askUsername() {
@@ -214,8 +220,9 @@ function app() {
             if(this.timer.running) return;
             this.socket.send(JSON.stringify({type: 'timer.cmd', data: {cmd: 'start'}}));
         },
-        stopTimer() {
-            this.socket.send(JSON.stringify({type: 'timer.cmd', data: {cmd: 'stop'}}));
+        stopTimer(isCommand) {
+            if(isCommand) this.socket.send(JSON.stringify({type: 'timer.cmd', data: {cmd: 'stop'}}));
+
             this.timer.show = false;
             this.timer.running = false;
             this.timer.done = false;

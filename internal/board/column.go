@@ -3,11 +3,10 @@ package board
 import (
 	"errors"
 
-	"github.com/ekaputra07/go-retro/internal/model"
 	"github.com/google/uuid"
 )
 
-func (b *Board) createColumn(msg *model.Message) error {
+func (b *Board) createColumn(msg *Message) error {
 	data := msg.Data.(map[string]any)
 	name, ok := data["name"]
 	if !ok {
@@ -17,7 +16,7 @@ func (b *Board) createColumn(msg *model.Message) error {
 	return err
 }
 
-func (b *Board) deleteColumn(msg *model.Message) error {
+func (b *Board) deleteColumn(msg *Message) error {
 	data := msg.Data.(map[string]any)
 	id, ok := data["id"]
 	if !ok {
@@ -26,7 +25,7 @@ func (b *Board) deleteColumn(msg *model.Message) error {
 	return b.db.DeleteColumn(uuid.MustParse(id.(string)))
 }
 
-func (b *Board) updateColumn(msg *model.Message) error {
+func (b *Board) updateColumn(msg *Message) error {
 	data := msg.Data.(map[string]any)
 
 	// get column

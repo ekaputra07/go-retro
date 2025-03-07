@@ -18,26 +18,34 @@ type Client struct {
 	AvatarID int         `json:"avatar_id"`
 	board    *Board
 	conn     *websocket.Conn
-	message  chan *model.Message
+	message  chan *Message
 }
 
+// read reads message from socket
 func (c *Client) read() {
 	defer c.conn.Close()
 	for {
-		var msg model.Message
+		var msg Message
 		err := c.conn.ReadJSON(&msg)
 		if err != nil {
 			log.Printf("client=%s error reading <-- %s", c.ID, err)
 			break
 		}
 		log.Printf("client=%s <-- %s", c.ID, msg.Type)
+
+		msg.client = c
 		c.board.message <- &msg
 	}
 }
 
+// write writes message to the socket
 func (c *Client) write() {
 	defer c.conn.Close()
 	for msg := range c.message {
+		if c == msg.client {
+			continue
+		}
+
 		log.Printf("client=%s --> %v", c.ID, msg.Type)
 		if err := c.conn.WriteJSON(msg); err != nil {
 			log.Printf("client=%s error writing --> %v", c.ID, err)
@@ -67,6 +75,6 @@ func NewClient(conn *websocket.Conn, user *model.User, board *Board) *Client {
 		AvatarID: rand.IntN(11) + 1,
 		board:    board,
 		conn:     conn,
-		message:  make(chan *model.Message),
+		message:  make(chan *Message),
 	}
 }

@@ -26,7 +26,7 @@ type Board struct {
 	leave chan *Client
 
 	// message to broadcast
-	message chan *model.Message
+	message chan *Message
 
 	// to stop the board
 	stop chan struct{}
@@ -51,12 +51,20 @@ func (b *Board) start() {
 		select {
 		case client := <-b.join:
 			b.addClient(client)
-			b.broadcastStatus()
-			b.broadcastTimer()
+			msgs := []*Message{
+				b.boardStateMessage(),
+				b.timerStateMessage(),
+				b.notificationMessage(client, fmt.Sprintf("%s joined", client.User.Name)),
+			}
+			b.broadcast(msgs)
 
 		case client := <-b.leave:
 			b.removeClient(client)
-			b.broadcastStatus()
+			msgs := []*Message{
+				b.boardStateMessage(),
+				b.notificationMessage(client, fmt.Sprintf("%s leave", client.User.Name)),
+			}
+			b.broadcast(msgs)
 
 		case msg := <-b.message:
 			broadcast, err := b.update(msg)
@@ -65,13 +73,16 @@ func (b *Board) start() {
 				continue
 			}
 			if broadcast {
-				if err := b.broadcastStatus(); err != nil {
-					log.Printf("broadcasting board=%s status failed: %s", b.ID, err)
-				}
+				msgs := []*Message{b.boardStateMessage()}
+				b.broadcast(msgs)
 			}
 
-		case <-b.timer.state:
-			b.broadcastTimer()
+		case t := <-b.timer.state:
+			msgs := []*Message{
+				b.timerStateMessage(),
+				b.notificationMessage(t.lastCommandClient, t.statusMessage),
+			}
+			b.broadcast(msgs)
 
 		case <-b.stop:
 			// cleanup timer when board stopped
@@ -106,30 +117,30 @@ func (b *Board) removeClient(client *Client) {
 	}
 }
 
-// update the board and broadcast its status if desired by returning `true` in bool output
-func (b *Board) update(msg *model.Message) (bool, error) {
+// update the board and broadcast its status if desired
+func (b *Board) update(msg *Message) (bool, error) {
 	switch msg.Type {
-	case model.MessageTypeColumnNew:
+	case MessageTypeColumnNew:
 		return true, b.createColumn(msg)
-	case model.MessageTypeColumnDelete:
+	case MessageTypeColumnDelete:
 		return true, b.deleteColumn(msg)
-	case model.MessageTypeColumnUpdate:
+	case MessageTypeColumnUpdate:
 		return true, b.updateColumn(msg)
-	case model.MessageTypeCardNew:
+	case MessageTypeCardNew:
 		return true, b.createCard(msg)
-	case model.MessageTypeCardDelete:
+	case MessageTypeCardDelete:
 		return true, b.deleteCard(msg)
-	case model.MessageTypeCardUpdate:
+	case MessageTypeCardUpdate:
 		return true, b.updateCard(msg)
-	case model.MessageTypeCardVote:
+	case MessageTypeCardVote:
 		return true, b.voteCard(msg)
-	case model.MessageTypeTimerCmd:
+	case MessageTypeTimerCmd:
 		return false, b.handleTimer(msg)
 	}
 	return false, nil
 }
 
-func (b *Board) broadcastStatus() error {
+func (b *Board) boardStateMessage() *Message {
 	// list clients
 	var clients []*Client
 	for c := range b.clients {
@@ -139,16 +150,18 @@ func (b *Board) broadcastStatus() error {
 	// list columns
 	columns, err := b.db.ListColumn(b.ID)
 	if err != nil {
-		return fmt.Errorf("broadcastStatus failed while fetching columns: %s", err)
+		log.Printf("broadcastBoardState failed while fetching columns: %s", err)
+		return nil
 	}
 
 	// list cards
 	cards, err := b.db.ListCard(b.ID)
 	if err != nil {
-		return fmt.Errorf("broadcastStatus failed while fetching cards: %s", err)
+		log.Printf("broadcastBoardState failed while fetching cards: %s", err)
+		return nil
 	}
-	msg := &model.Message{
-		Type: model.MessageTypeBoardStatus,
+	return &Message{
+		Type: MessageTypeBoardStatus,
 		Data: map[string]any{
 			"id":      b.ID,
 			"clients": clients,
@@ -156,19 +169,35 @@ func (b *Board) broadcastStatus() error {
 			"cards":   cards,
 		},
 	}
-	for u := range b.clients {
-		u.message <- msg
-	}
-	return nil
+
 }
 
-func (b *Board) broadcastTimer() {
-	msg := &model.Message{
-		Type: model.MessageTypeTimerState,
+func (b *Board) timerStateMessage() *Message {
+	return &Message{
+		Type: MessageTypeTimerState,
 		Data: b.timer,
 	}
-	for u := range b.clients {
-		u.message <- msg
+}
+
+func (b *Board) notificationMessage(client *Client, msg string) *Message {
+	if msg == "" {
+		return nil
+	}
+
+	return &Message{
+		client: client,
+		Type:   MessageTypeNotification,
+		Data:   msg,
+	}
+}
+
+func (b *Board) broadcast(msgs []*Message) {
+	for c := range b.clients {
+		for _, m := range msgs {
+			if m != nil {
+				c.message <- m
+			}
+		}
 	}
 }
 
@@ -197,19 +226,19 @@ func getOrCreateBoard(id uuid.UUID, manager *BoardManager) (*Board, error) {
 		clients: make(map[*Client]bool),
 		join:    make(chan *Client),
 		leave:   make(chan *Client),
-		message: make(chan *model.Message),
+		message: make(chan *Message),
 		stop:    make(chan struct{}),
 		timer:   newTimer(),
 	}, nil
 }
 
-func (b *Board) handleTimer(msg *model.Message) error {
+func (b *Board) handleTimer(msg *Message) error {
 	data := msg.Data.(map[string]any)
 	cmdAny, ok := data["cmd"]
 	if !ok {
 		return errors.New("handleTimer payload missing `cmd` field")
 	}
-	cmd := timerCmd{cmd: cmdAny.(string)}
+	cmd := timerCmd{cmd: cmdAny.(string), client: msg.client}
 
 	value, ok := data["value"]
 	if ok {
