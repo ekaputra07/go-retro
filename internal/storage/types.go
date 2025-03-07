@@ -1,30 +1,10 @@
-package model
+package storage
 
 import (
 	"time"
 
 	"github.com/google/uuid"
 )
-
-type MessageType string
-
-const (
-	MessageTypeBoardStatus  MessageType = "board.status"
-	MessageTypeColumnNew    MessageType = "column.new"
-	MessageTypeColumnUpdate MessageType = "column.update"
-	MessageTypeColumnDelete MessageType = "column.delete"
-	MessageTypeCardNew      MessageType = "card.new"
-	MessageTypeCardUpdate   MessageType = "card.update"
-	MessageTypeCardDelete   MessageType = "card.delete"
-	MessageTypeCardVote     MessageType = "card.vote"
-	MessageTypeTimerCmd     MessageType = "timer.cmd"
-	MessageTypeTimerState   MessageType = "timer.state"
-)
-
-type Message struct {
-	Type MessageType `json:"type"`
-	Data any         `json:"data"`
-}
 
 // User holds information the person that join the board.
 // Users are not bounded to specific board but are global entities.

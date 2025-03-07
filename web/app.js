@@ -49,14 +49,22 @@ function app() {
         onWsEvent(event) {
             const e = JSON.parse(event.data);
             switch (e.type) {
-                case 'board.status':
-                    const sortedClients = e.data.clients.sort((a, b) => a.joined_at - b.joined_at);
+                case 'board.users':
+                    const sortedClients = e.data.sort((a, b) => a.joined_at - b.joined_at);
                     const uniqueClients = [...new Set(sortedClients.map(c => c.user.id))];
                     this.numClients = uniqueClients.length;
                     this.clients = uniqueClients.map(id => sortedClients.find(c => c.user.id === id));
+                    break;
+
+                case 'board.status':
                     this.columns = e.data.columns.sort((a, b) => a.order - b.order);
                     this.cards = (e.data.cards || []).sort((a, b) => a.created_at - b.created_at)
                     break;
+
+                case 'board.notification':
+                    this.dispatchCustomEvents('flash', e.data);
+                    break;
+                    
                 case 'timer.state':
                     this.timer.show = ['running', 'paused', 'done'].indexOf(e.data.status) !== -1;
                     this.timer.done = e.data.status === 'done';
@@ -64,8 +72,12 @@ function app() {
                     this.timer.display = e.data.display;
                     if(this.timer.done) {
                         this.playSound();
-                        setTimeout(() => this.stopTimer(), 10000);
+                        setTimeout(() => this.stopTimer(false), 10000);
                     }
+                    break;
+
+                default:
+                    break;
             }
         },
         askUsername() {
@@ -214,8 +226,9 @@ function app() {
             if(this.timer.running) return;
             this.socket.send(JSON.stringify({type: 'timer.cmd', data: {cmd: 'start'}}));
         },
-        stopTimer() {
-            this.socket.send(JSON.stringify({type: 'timer.cmd', data: {cmd: 'stop'}}));
+        stopTimer(isCommand) {
+            if(isCommand) this.socket.send(JSON.stringify({type: 'timer.cmd', data: {cmd: 'stop'}}));
+
             this.timer.show = false;
             this.timer.running = false;
             this.timer.done = false;
