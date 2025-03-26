@@ -21,6 +21,10 @@
 go.work
 go.work.sum
 
+# web files
+node_modules/
+dist/
+
 # env file
 .env
 go-cache/

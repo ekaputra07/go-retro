@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/gob"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/ekaputra07/go-retro/internal/board"
 	"github.com/ekaputra07/go-retro/internal/storage"
@@ -17,16 +19,17 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func init() {
-	gob.Register(uuid.UUID{})
-}
-
 const SESSION_NAME = "goretro_session"
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin:     func(r *http.Request) bool { return true },
+}
+var boardTpl = template.Must(template.ParseFiles("web/templates/board.html"))
+
+func init() {
+	gob.Register(uuid.UUID{})
 }
 
 type app struct {
@@ -54,8 +57,9 @@ func (a *app) start() context.CancelFunc {
 	// setup routes
 	a.router = mux.NewRouter()
 	a.router.Use(a.loggingMiddleware)
+	a.router.Use(a.cacheControlMiddleware)
 	a.router.HandleFunc("/health", a.health)
-	a.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("web"))))
+	a.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("web/public"))))
 	a.router.HandleFunc("/b/{board}/ws", a.websocket)
 	a.router.HandleFunc("/b/{board}", a.board)
 	a.router.HandleFunc("/", a.generateBoard)
@@ -65,6 +69,15 @@ func (a *app) start() context.CancelFunc {
 
 func (a *app) loggingMiddleware(next http.Handler) http.Handler {
 	return handlers.LoggingHandler(os.Stdout, next)
+}
+
+func (a *app) cacheControlMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/static/") {
+			w.Header().Set("Cache-Control", "public, max-age=3600")
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (a *app) health(w http.ResponseWriter, _ *http.Request) {
@@ -108,7 +121,9 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 		log.Printf("new user created with id=%s", u.ID)
 	}
 
-	http.ServeFile(w, r, "web/index.html")
+	if err := boardTpl.Execute(w, nil); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
 }
 
 func (a *app) websocket(w http.ResponseWriter, r *http.Request) {

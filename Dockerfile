@@ -1,4 +1,4 @@
-FROM golang:1.23-alpine AS build
+FROM golang:1.23-alpine AS go-builder
 
 # Set the working directory
 WORKDIR /app
@@ -10,8 +10,20 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build
+# Build app
 RUN CGO_ENABLED=0 GOOS=linux go build -o go-retro
+
+FROM node:22-alpine AS web-builder
+
+# Set the working directory
+WORKDIR /app
+
+# Copy source code
+COPY web web
+
+# Build assets
+WORKDIR /app/web/assets
+RUN npm install && npm run build
 
 FROM alpine:edge
 
@@ -23,8 +35,9 @@ ENV GORETRO_PORT=8080
 WORKDIR /app
 
 # copy the binary and statics from the build stage
-COPY --from=build /app/go-retro .
-COPY --from=build /app/web web
+COPY --from=go-builder /app/go-retro .
+COPY --from=web-builder /app/web/templates ./web/templates
+COPY --from=web-builder /app/web/public ./web/public
 
 # Set the entry point
 ENTRYPOINT [ "./go-retro" ]

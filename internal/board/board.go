@@ -4,10 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math/rand"
 
 	"github.com/ekaputra07/go-retro/internal/storage"
 	"github.com/google/uuid"
 )
+
+// avatarsCount is the total number of avatars available to choose from.
+// see: web/public/avatars
+const avatarsCount = 12
 
 // initial columns assigned when the board created
 var defaultColumns = []string{"Good", "Bad", "Questions", "Emoji"}
@@ -18,6 +23,7 @@ type Board struct {
 	manager *BoardManager
 	db      storage.Storage
 	clients map[*Client]bool
+	avatars map[int]bool
 	timer   *timer
 
 	// client joined and leaved
@@ -116,6 +122,10 @@ func (b *Board) listen() {
 
 func (b *Board) addClient(client *Client) {
 	log.Printf("client=%s joined board=%s\n", client.ID, b.ID)
+	avatarID := b.uniqueAvatarID()
+	// TODO: avatar should be assigned to user not client
+	client.AvatarID = avatarID
+	b.avatars[avatarID] = true
 	b.clients[client] = true
 }
 
@@ -124,12 +134,23 @@ func (b *Board) removeClient(client *Client) {
 		log.Printf("client=%s leaving board=%s\n", client.ID, b.ID)
 
 		delete(b.clients, client)
+		delete(b.avatars, client.AvatarID)
 
 		// if no joined clients, stop board
 		if len(b.clients) == 0 {
 			close(b.stop)
 		}
 	}
+}
+
+// uniqueAvatarID generates unique avatar ID for a client
+// by checking if the ID is already used by another client recursively
+func (b *Board) uniqueAvatarID() int {
+	randID := rand.Intn(avatarsCount-1) + 1
+	if _, ok := b.avatars[randID]; ok {
+		return b.uniqueAvatarID()
+	}
+	return randID
 }
 
 // update the board and broadcast its status if desired
@@ -252,6 +273,7 @@ func getOrCreateBoard(id uuid.UUID, manager *BoardManager) (*Board, error) {
 		manager: manager,
 		db:      manager.db,
 		clients: make(map[*Client]bool),
+		avatars: make(map[int]bool),
 		join:    make(chan *Client),
 		leave:   make(chan *Client),
 		message: make(chan *message),

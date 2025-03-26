@@ -9,54 +9,16 @@
 	<title>GoRetro - A minimalist yet fun retro board for happy teams 😉</title>
 	<meta name="title" content="GoRetro" />
 	<meta name="description" content="A minimalist yet fun retro board for happy teams 😉" />
-	<link rel="stylesheet" href="/static/tailwind.css">
-	<script src="/static/alpine.js" defer></script>
-	<script src="/static/app.js"></script>
+	<link rel="stylesheet" href="/static/main.css">
+	<script src="/static/main.js" defer></script>
 	<style>
 		[x-cloak] {
 			display: none;
 		}
-		
-		.form-radio {
-			-webkit-appearance: none;
-			-moz-appearance: none;
-			appearance: none;
-			display: inline-block;
-			vertical-align: middle;
-			background-origin: border-box;
-			-webkit-user-select: none;
-			-moz-user-select: none;
-			-ms-user-select: none;
-			user-select: none;
-			flex-shrink: 0;
-			color: currentColor;
-			background-color: #fff;
-			border-color: #e2e8f0;
-			border-width: 1px;
-			height: 1.4em;
-			width: 1.4em;
-		}
-
-		.form-radio {
-			border-radius: 50%;
-		}
-
-		.form-radio:checked {
-			background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e");
-			border-color: transparent;
-			background-color: currentColor;
-			background-size: 100% 100%;
-			background-position: center;
-			background-repeat: no-repeat;
-		}
-		.gradient {
-			background: rgb(255,255,255);
-			background: linear-gradient(270deg, rgba(255,255,255,1) 0%, rgba(255,255,255,0.9164040616246498) 100%);
-		}
 	</style>
 </head>
 
-<body class="antialiased sans-serif bg-gray-400">
+<body class="antialiased sans-serif bg-slate-300">
 	<!-- Alert Box -->
 	<div 
 		class="fixed w-full z-50 flex inset-0 items-start justify-center pointer-events-none md:mt-5"
@@ -78,7 +40,7 @@
 				x-transition:leave="transition ease-in duration-100 transform"
 				x-transition:leave-start="opacity-100"
 				x-transition:leave-end="opacity-0 -translate-y-5"
-				class="w-full px-4 py-4 w-full md:max-w-sm bg-gray-900 md:rounded-md shadow-lg">
+				class="w-full px-4 py-4 md:max-w-sm bg-gray-900 md:rounded-md shadow-lg">
 				<div class="flex items-center">
 					<div class="flex-shrink-0 mr-3">
 						<svg class="h-6 w-6 text-gray-400"  viewBox="0 0 20 20" fill="currentColor">  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"/></svg>
@@ -114,10 +76,9 @@
 					<div>
 						<!-- Kanban Board -->
 						<div class="mt-4">
-							<div :class="`grid grid-cols-${columns.length} gap-4 block pb-2`">
+							<div :class="`grid ${gridColsClass()} gap-4 pb-2 items-start`">
 								<template x-for="column in columns" :key="column.id">	
-									<div>
-										<div class="bg-gray-100 pb-4 rounded-md shadow overflow-y-auto overflow-x-hidden border-t-8 border-blue-600"
+										<div class="bg-slate-100 pb-4 rounded-md shadow overflow-y-auto overflow-x-hidden border-t-8 border-sky-600"
 											style="min-height: 100px"
 										>
 											<div class="flex justify-between items-center px-4 py-2 bg-gray-100 mb-2">
@@ -140,30 +101,31 @@
 													<template x-for="c in cards.filter(c => c.column_id === column.id)" :key="c.id">
 														<div :id="c.id">
 															<div
-																class="relative overflow-hidden bg-white rounded-md shadow mb-3 p-3 border border-gray-400" 
+																class="relative overflow-hidden bg-white rounded-md shadow mb-3 p-3 border border-gray-300" 
 																draggable="true" 
 																@dragstart="onDragStart(event, c)"
+																@dragend="onDragEnd(event)"
 																@mouseover="c.showActions = true"
 																@mouseleave="c.showActions = false"
 															>
 																<div x-text="c.name" class="text-gray-800 font-medium leading-tight pr-8"></div>
 																<div class="absolute top-0 right-0 bottom-0 flex justify-between items-center gap-2 px-4 gradient">
 																	<span x-show="c.showActions" @click="editCard(column, c); setTimeout(() => $refs.cardName.focus())" title="Edit">
-																		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-gray-800 cursor-pointer">
+																		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-gray-500 cursor-pointer">
 																			<path stroke-linecap="round" stroke-linejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L6.832 19.82a4.5 4.5 0 0 1-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 0 1 1.13-1.897L16.863 4.487Zm0 0L19.5 7.125" />
 																		</svg>																		  
 																	</span>
 																	<span x-show="c.showActions" @click="voteCard(c, 1)" title="Vote up">
-																		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-green-700 cursor-pointer">
+																		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-green-600 cursor-pointer">
 																			<path stroke-linecap="round" stroke-linejoin="round" d="M6.633 10.25c.806 0 1.533-.446 2.031-1.08a9.041 9.041 0 0 1 2.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 0 0 .322-1.672V2.75a.75.75 0 0 1 .75-.75 2.25 2.25 0 0 1 2.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282m0 0h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 0 1-2.649 7.521c-.388.482-.987.729-1.605.729H13.48c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 0 0-1.423-.23H5.904m10.598-9.75H14.25M5.904 18.5c.083.205.173.405.27.602.197.4-.078.898-.523.898h-.908c-.889 0-1.713-.518-1.972-1.368a12 12 0 0 1-.521-3.507c0-1.553.295-3.036.831-4.398C3.387 9.953 4.167 9.5 5 9.5h1.053c.472 0 .745.556.5.96a8.958 8.958 0 0 0-1.302 4.665c0 1.194.232 2.333.654 3.375Z" />
 																		</svg>
 																	</span>
 																	<span x-show="c.showActions" @click="voteCard(c, -1)" title="Vote down">
-																		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-red-600 cursor-pointer">
+																		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-5 text-red-500 cursor-pointer">
 																			<path stroke-linecap="round" stroke-linejoin="round" d="M7.498 15.25H4.372c-1.026 0-1.945-.694-2.054-1.715a12.137 12.137 0 0 1-.068-1.285c0-2.848.992-5.464 2.649-7.521C5.287 4.247 5.886 4 6.504 4h4.016a4.5 4.5 0 0 1 1.423.23l3.114 1.04a4.5 4.5 0 0 0 1.423.23h1.294M7.498 15.25c.618 0 .991.724.725 1.282A7.471 7.471 0 0 0 7.5 19.75 2.25 2.25 0 0 0 9.75 22a.75.75 0 0 0 .75-.75v-.633c0-.573.11-1.14.322-1.672.304-.76.93-1.33 1.653-1.715a9.04 9.04 0 0 0 2.86-2.4c.498-.634 1.226-1.08 2.032-1.08h.384m-10.253 1.5H9.7m8.075-9.75c.01.05.027.1.05.148.593 1.2.925 2.55.925 3.977 0 1.487-.36 2.89-.999 4.125m.023-8.25c-.076-.365.183-.75.575-.75h.908c.889 0 1.713.518 1.972 1.368.339 1.11.521 2.287.521 3.507 0 1.553-.295 3.036-.831 4.398-.306.774-1.086 1.227-1.918 1.227h-1.053c-.472 0-.745-.556-.5-.96a8.95 8.95 0 0 0 .303-.54" />
 																		</svg>																		  
 																	</span>
-																	<span x-show="c.votes != 0" class="font-semibold" :class="c.votes > 0 ? 'text-green-600': 'text-red-600'" x-text="c.votes > 0 ? '+'+c.votes : c.votes"></span>
+																	<span x-show="c.votes != 0" class="font-semibold" :class="c.votes > 0 ? 'text-green-600': 'text-red-500'" x-text="c.votes > 0 ? '+'+c.votes : c.votes"></span>
 																</div>
 															</div>
 														</div>
@@ -171,8 +133,7 @@
 												</div>
 												<div class="text-center">
 													<a @click.prevent="editCard(column, null)" href="#" 
-													class="inline-flex items-center text-gray-700 text-sm font-medium "
-													>
+													class="inline-flex items-center text-gray-700 text-sm font-medium">
 														<svg class="h-4 w-4"  fill="none" viewBox="0 0 24 24" stroke="currentColor">
 															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
 														</svg>									  
@@ -182,7 +143,6 @@
 											</div>
 	
 										</div>
-									</div>
 								</template>
 							</div>
 						</div>
@@ -192,30 +152,35 @@
 			</div>
 		</div>
 
-		<div class="flex items-center justify-center gap-2 mb-4" x-ignore>
-			<template x-for="c in clients" :key="c.id">
-				<div class="flex flex-col items-center justify-center cursor-pointer" @click="dispatchCustomEvents('flash', c.user.name)" :title="c.user.name">
-					<img :src="'/static/avatar/'+c.avatar_id+'.png'" alt="avatar" class="w-12 h-12 rounded-full border-2 border-white shadow-sm" />
-					<span class="font-bold text-sm text-gray-700" x-text="c.user.name"></span>
+		<!-- bottom menus -->
+		<div class="fixed bottom-0 right-0 left-0 flex flex-col">
+			<div class="flex justify-between items-center pb-2 px-4">
+				<div class="flex items-center justify-center gap-2 mb-1">
+					<template x-for="c in clients" :key="c.id">
+						<div class="flex flex-col relative isolate items-center justify-center cursor-pointer" @click="dispatchCustomEvents('flash', c.user.name)" :title="c.user.name">
+							<img :src="'/static/avatar/'+c.avatar_id+'.png'" alt="avatar" class="w-12 h-12 rounded-full border-2 border-white shadow-sm" />
+							<span x-show="numClientConnections(c.user.id) > 1" class="absolute top-0 right-0 z-10 flex items-center justify-around w-4 h-4 bg-white rounded-full text-gray-600 shadow text-xs font-semibold" x-text="numClientConnections(c.user.id)"></span>
+							<span class="font-bold text-sm text-gray-700" x-text="c.user.name"></span>
+						</div>
+					</template>
 				</div>
-			</template>
-		</div>
-
-		<!-- Footer -->
-		<div class="flex justify-between items-center bg-white px-4 py-1 shadow text-xs text-gray-600 text-center">
-			<div class="flex justify-between md:justify-start items-center gap-2 flex-1">
-				<!-- <p class="text-xs text-gray-600 text-center"><span x-text="boardId"></span></p> -->
-				<div class="flex items-center gap-1"><span class="flex w-2 h-2 me-4 bg-green-500 rounded-full"></span> <span x-text="(numClients == 1 ? '1 person' : `${numClients} people`) + ' online'"></span></div>
+				<div class="flex items-center justify-center gap-2">
+					<div title="Start a timer" class="w-12 h-12 flex items-center justify-center text-white shadow rounded-full bg-sky-600 hover:bg-sky-700 z-9 cursor-pointer border-2 border-white" @click="openTimerModal=true; setTimeout(() => $refs.timerDuration.focus(), 200);" x-show="!timer.show">
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M9 3V1h6v2zm3 19q-1.85 0-3.488-.712T5.65 19.35t-1.937-2.863T3 13t.713-3.488T5.65 6.65t2.863-1.937T12 4q1.55 0 2.975.5t2.675 1.45l1.4-1.4l1.4 1.4l-1.4 1.4Q20 8.6 20.5 10.025T21 13q0 1.85-.713 3.488T18.35 19.35t-2.863 1.938T12 22m0-2q2.9 0 4.95-2.05T19 13t-2.05-4.95T12 6T7.05 8.05T5 13t2.05 4.95T12 20m-2-3l6-4l-6-4z"/></svg>		
+					</div>
+					<div title="New Column" class="w-12 h-12 flex items-center justify-center text-white shadow rounded-full bg-sky-600 hover:bg-sky-700 z-9 cursor-pointer border-2 border-white" @click="editColumn(null)">
+						<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-7-7v14"/></svg>
+					</div>
+				</div>
 			</div>
-			<p class="text-xs text-gray-600 text-center hidden md:block"><a href="https://github.com/ekaputra07/go-retro" class="underline" target="_blank">GoRetro</a> - A minimalist yet fun retro board for happy teams 😉</p>
-		</div>
-		<!-- /Footer -->
-
-		<div title="Start a timer" class="fixed bottom-0 left-0 w-12 h-12 mb-10 flex items-center justify-center text-white shadow flex items-center justify-center ml-4 rounded-full bg-blue-600 hover:bg-blue-700 z-9 cursor-pointer border-2 border-white" @click="openTimerModal=true; setTimeout(() => $refs.timerDuration.focus(), 200);" x-show="!timer.show">
-			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M9 3V1h6v2zm3 19q-1.85 0-3.488-.712T5.65 19.35t-1.937-2.863T3 13t.713-3.488T5.65 6.65t2.863-1.937T12 4q1.55 0 2.975.5t2.675 1.45l1.4-1.4l1.4 1.4l-1.4 1.4Q20 8.6 20.5 10.025T21 13q0 1.85-.713 3.488T18.35 19.35t-2.863 1.938T12 22m0-2q2.9 0 4.95-2.05T19 13t-2.05-4.95T12 6T7.05 8.05T5 13t2.05 4.95T12 20m-2-3l6-4l-6-4z"/></svg>		
-		</div>
-		<div title="New Column" class="fixed bottom-0 right-0 w-12 h-12 mb-10 flex items-center justify-center text-white shadow mb-10 mr-4 rounded-full bg-blue-600 hover:bg-blue-700 z-9 cursor-pointer border-2 border-white" @click="editColumn(null)">
-			<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-7-7v14"/></svg>
+			<!-- Footer -->
+			<div class="flex justify-between items-center bg-white px-4 py-2 shadow text-xs text-gray-600 text-center">
+				<div class="flex justify-between md:justify-start items-center gap-2 flex-1">
+					<div class="flex items-center"><span class="flex w-2 h-2 me-1 bg-green-500 rounded-full"></span> <span x-text="(numClients == 1 ? '1 person' : `${numClients} people`) + ' online'"></span></div>
+				</div>
+				<p class="text-xs text-gray-600 text-center hidden md:block"><a href="https://github.com/ekaputra07/go-retro" class="underline" target="_blank">GoRetro</a> - A minimalist yet fun retro board for happy teams 😉</p>
+			</div>
+			<!-- /Footer -->
 		</div>
 
 		<!-- Modal -->
@@ -226,12 +191,12 @@
 				<div class="w-full rounded-t-lg md:rounded-md bg-white p-8">
 					<h2 class="font-semibold text-xl mb-6 text-gray-800">Your name</h2>
 					<div class="mb-4">
-						<input type="text" class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-500" x-model="username" x-ref="username" autofocus @keydown.enter="joinBoard()"/>
+						<input type="text" class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-sky-500" x-model="username" x-ref="username" autofocus @keydown.enter="joinBoard()"/>
 						<p class="text-gray-500 text-sm mt-2">Name used to show who's joining, cards are anonymous.</p>
 					</div>
 					<div class="flex justify-between items-center mt-8 text-right">
 						<div class="flex-1">
-						<button type="button" class="text-white font-semibold py-1 px-4 border border-transparent rounded-md shadow-sm bg-blue-700 hover:bg-blue-800"  @click="joinBoard()">
+						<button type="button" class="text-white font-semibold py-1 px-4 border border-transparent rounded-md shadow-sm bg-sky-600 hover:bg-sky-700"  @click="joinBoard()">
 							Join
 						</button>
 						</div>
@@ -245,11 +210,11 @@
 			<div class="md:p-4 md:max-w-lg mx-auto w-full flex-1 relative overflow-hidden">
 				<div class="w-full rounded-t-lg md:rounded-md bg-white p-8">
 
-					<h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="!tempCard.id">New card for <span class="leading-normal text-blue-600" x-text="columnNameById(tempCard.column_id)"></span></h2>
+					<h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="!tempCard.id">New card for <span class="leading-normal text-sky-600" x-text="columnNameById(tempCard.column_id)"></span></h2>
 					<h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="tempCard.id">Edit card</h2>
 
 					<div class="mb-4">
-						<input type="text" class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-500" x-model="tempCard.name" x-ref="cardName" autofocus @keydown.enter="saveCard()"/>
+						<input type="text" class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-sky-500" x-model="tempCard.name" x-ref="cardName" autofocus @keydown.enter="saveCard()"/>
 					</div>
 
 					<div class="flex justify-between items-center mt-8 text-right">
@@ -258,7 +223,7 @@
 						<button type="button" class="bg-white hover:bg-gray-100 text-gray-700 font-semibold py-1 px-4 border border-gray-300 rounded-md shadow-sm mr-2" @click="closeModal('card')">
 							Cancel
 						</button>
-						<button type="button" class="text-white font-semibold py-1 px-4 border border-transparent rounded-md shadow-sm bg-blue-700 hover:bg-blue-800" @click="saveCard()">
+						<button type="button" class="text-white font-semibold py-1 px-4 border border-transparent rounded-md shadow-sm bg-sky-600 hover:bg-sky-700" @click="saveCard()">
 							Save
 						</button>	
 						</div>
@@ -274,7 +239,7 @@
 					<h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="!tempColumn.id">New Column</h2>
 					<h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="tempColumn.id">Edit Column</h2>
 					<div class="mb-4">
-						<input type="text" class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-500" x-model="tempColumn.name" x-ref="columnName" autofocus @keydown.enter="saveColumn()"/>
+						<input type="text" class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-sky-500" x-model="tempColumn.name" x-ref="columnName" autofocus @keydown.enter="saveColumn()"/>
 					</div>
 					<div class="flex justify-between items-center mt-8 text-right">
 						<a @click="deleteColumn(tempColumn)" class="text-sm text-red-600 font-medium cursor-pointer" x-show="tempColumn.id">Delete</a>
@@ -282,7 +247,7 @@
 						<button type="button" class="bg-white hover:bg-gray-100 text-gray-700 font-semibold py-1 px-4 border border-gray-300 rounded-md shadow-sm mr-2" @click="closeModal('column')">
 							Cancel
 						</button>
-						<button type="button" class="text-white font-semibold py-1 px-4 border border-transparent rounded-md shadow-sm bg-blue-700 hover:bg-blue-800"  @click="saveColumn()">
+						<button type="button" class="text-white font-semibold py-1 px-4 border border-transparent rounded-md shadow-sm bg-sky-600 hover:bg-sky-700"  @click="saveColumn()">
 							Save
 						</button>
 						</div>
@@ -297,7 +262,7 @@
 				<div class="w-full rounded-t-lg md:rounded-md bg-white p-8">
 					<h2 class="font-semibold text-xl mb-6 text-gray-800">Timer duration</h2>
 					<div class="mb-4">
-						<input type="text" class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-blue-500" x-model="timer.duration" x-ref="timerDuration" autofocus @keydown.enter="startTimer()"/>
+						<input type="text" class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-sky-500" x-model="timer.duration" x-ref="timerDuration" autofocus @keydown.enter="startTimer()"/>
 						<p class="text-gray-500 text-sm mt-2">Supported formats: <strong>5m</strong> or <strong>30s</strong> or <strong>5m30s</strong></p>
 					</div>
 					<div class="flex justify-between items-center mt-8 text-right">
@@ -305,7 +270,7 @@
 						<button type="button" class="bg-white hover:bg-gray-100 text-gray-700 font-semibold py-1 px-4 border border-gray-300 rounded-md shadow-sm mr-2" @click="closeModal('timer')">
 							Cancel
 						</button>
-						<button type="button" class="text-white font-semibold py-1 px-4 border border-transparent rounded-md shadow-sm bg-blue-700 hover:bg-blue-800"  @click="startTimer()">
+						<button type="button" class="text-white font-semibold py-1 px-4 border border-transparent rounded-md shadow-sm bg-sky-600 hover:bg-sky-700"  @click="startTimer()">
 							Start
 						</button>
 						</div>

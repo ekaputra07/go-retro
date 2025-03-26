@@ -2,7 +2,6 @@ package board
 
 import (
 	"log"
-	"math/rand"
 	"time"
 
 	"github.com/ekaputra07/go-retro/internal/storage"
@@ -76,7 +75,6 @@ func NewClient(conn *websocket.Conn, user *storage.User, board *Board) *Client {
 		ID:       uuid.New(),
 		User:     user,
 		JoinedAt: time.Now().Unix(),
-		AvatarID: rand.Intn(11) + 1, // TODO: make this configurable
 		board:    board,
 		conn:     conn,
 		message:  make(chan *message),

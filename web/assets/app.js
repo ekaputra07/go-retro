@@ -1,5 +1,4 @@
-function app() {
-    return {
+export default () =>  ({
         socket: null,
         username: null,
         openUsernameModal: false,
@@ -7,6 +6,7 @@ function app() {
         openColumnModal: false,
         openTimerModal: false,
         clients: [],
+        clientConnections: {},
         columns: [],
         cards: [],
         numClients: 0,
@@ -53,6 +53,12 @@ function app() {
                     const sortedClients = e.data.sort((a, b) => a.joined_at - b.joined_at);
                     const uniqueClients = [...new Set(sortedClients.map(c => c.user.id))];
                     this.numClients = uniqueClients.length;
+                    this.clientConnections = sortedClients.reduce((acc, c) => {
+                        if(!acc[c.user.id]) acc[c.user.id] = 0;
+                        acc[c.user.id]++;
+                        return acc;
+                    }
+                    , {});
                     this.clients = uniqueClients.map(id => sortedClients.find(c => c.user.id === id));
                     break;
 
@@ -72,7 +78,7 @@ function app() {
                     this.timer.display = e.data.display;
                     if(this.timer.done) {
                         this.playSound();
-                        setTimeout(() => this.stopTimer(false), 10000);
+                        setTimeout(() => this.stopTimer(false), 5000);
                     }
                     break;
 
@@ -100,6 +106,10 @@ function app() {
         },
         editColumn(column) {
             if(column == null) {
+                if(this.columns.length >= 6) {
+                    this.dispatchCustomEvents('flash', 'You can only have a maximum of 6 columns');
+                    return;
+                }
                 this.tempColumn.name = '';
                 this.tempColumn.id = '';
             } else {
@@ -175,7 +185,10 @@ function app() {
         onDragStart(event, card) {
             event.dataTransfer.setData('cardId', card.id);
             event.dataTransfer.setData('cardColumnId', card.column_id);
-            event.target.classList.add('opacity-5');
+            event.target.classList.add('opacity-10');
+        },
+        onDragEnd(event) {
+            event.target.classList.remove('opacity-10');
         },
         onDragOver(event) {
             event.preventDefault();
@@ -238,12 +251,21 @@ function app() {
             const audio = new Audio('/static/notif.wav');
             audio.play();
         },
-        formatUsername(username) {
-            return username.substring(0, 2).toUpperCase();
+        numClientConnections(userId) {
+            return this.clientConnections[userId] || 0;
         },
         dispatchCustomEvents(eventName, message) {
             let customEvent = new CustomEvent(eventName, { detail: { message: message } });
             window.dispatchEvent(customEvent);
+        },
+        gridColsClass() {
+            return {
+                1: 'grid-cols-1',
+                2: 'grid-cols-2',
+                3: 'grid-cols-3',
+                4: 'grid-cols-4',
+                5: 'grid-cols-5',
+                6: 'grid-cols-6',
+            }[this.columns.length] || 'grid-cols-4';
         }
-    }
-}
+    });
