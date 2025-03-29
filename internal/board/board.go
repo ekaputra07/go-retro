@@ -80,7 +80,6 @@ func (b *Board) listen() {
 			msgs := []*message{
 				b.usersStateMessage(),
 				b.boardStateMessage(),
-				b.notificationMessage(fmt.Sprintf("%s leave", client.User.Name), client),
 			}
 			b.broadcast(msgs)
 

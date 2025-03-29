@@ -42,8 +42,11 @@ func (c *Client) read() {
 func (c *Client) write() {
 	defer c.conn.Close()
 	for msg := range c.message {
-		if c == msg.client {
-			continue
+		// don't send update message to self
+		if msg.client != nil {
+			if msg.client.User.ID == c.User.ID {
+				continue
+			}
 		}
 
 		log.Printf("client=%s --> %v", c.ID, msg.Type)
