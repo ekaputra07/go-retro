@@ -10,6 +10,7 @@
     "build": "npm run build:js && npm run build:css"
   },
   "dependencies": {
+    "@joeattardi/emoji-button": "^4.6.4",
     "alpinejs": "^3.14.9"
   }
 }
