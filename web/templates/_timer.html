@@ -1,0 +1,21 @@
+{{ define "timer" }}
+<!-- timer -->
+<div :class="timer.done ? 'bg-orange-600' : 'bg-green-600'" class="p-3" x-show="timer.show">
+    <div class="flex justify-center items-center text-white gap-2 relative">
+        <div x-show="timer.done" class="text-xl font-bold leading-none">Time's up<span class="italic">!</span></div>
+        <div x-show="!timer.done" class="flex items-center gap-2">
+            <div class="text-xl font-bold leading-none" x-text="timer.display"></div>
+            <button x-show="timer.running" @click="pauseTimer()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10s10-4.477 10-10S17.523 2 12 2m-1 14H9V8h2zm4 0h-2V8h2z"/></svg>
+            </button>
+            <button x-show="!timer.running" @click="resumeTimer()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2m-2 14.5v-9l6 4.5z"/></svg>
+            </button>
+        </div>
+        <button class="absolute top-1 right-0 mr-2" @click="stopTimer(true)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 14 14"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" d="m13.5.5l-13 13m0-13l13 13"/></svg>
+        </button>
+    </div>
+</div>
+<!-- /timer -->
+{{ end }}

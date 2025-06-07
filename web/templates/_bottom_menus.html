@@ -1,0 +1,33 @@
+{{ define "bottom_menus" }}
+<!-- bottom menus -->
+<div class="fixed bottom-0 right-0 left-0 flex flex-col">
+    <div class="flex justify-between items-center pb-2 px-4">
+        <div class="flex items-center justify-center gap-2 mb-1">
+            <template x-for="c in clients" :key="c.id">
+                <div class="flex flex-col relative isolate items-center justify-center cursor-pointer" @click="dispatchCustomEvents('flash', c.user.name)" :title="c.user.name">
+                    <img :src="'/static/avatar/'+c.avatar_id+'.png'" alt="avatar" class="w-12 h-12 rounded-full border-2 border-white shadow-sm" />
+                    <span x-show="numClientConnections(c.user.id) > 1" class="absolute top-0 right-0 z-10 flex items-center justify-around w-4 h-4 bg-white rounded-full text-gray-600 shadow text-xs font-semibold" x-text="numClientConnections(c.user.id)"></span>
+                    <span class="font-bold text-sm text-gray-700" x-text="c.user.name"></span>
+                </div>
+            </template>
+        </div>
+        <div class="flex items-center justify-center gap-2">
+            <div title="Start a timer" class="w-12 h-12 flex items-center justify-center text-white shadow rounded-full bg-sky-600 hover:bg-sky-700 z-9 cursor-pointer border-2 border-white" @click="openTimerModal=true; setTimeout(() => $refs.timerDuration.focus(), 200);" x-show="!timer.show">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="currentColor" d="M9 3V1h6v2zm3 19q-1.85 0-3.488-.712T5.65 19.35t-1.937-2.863T3 13t.713-3.488T5.65 6.65t2.863-1.937T12 4q1.55 0 2.975.5t2.675 1.45l1.4-1.4l1.4 1.4l-1.4 1.4Q20 8.6 20.5 10.025T21 13q0 1.85-.713 3.488T18.35 19.35t-2.863 1.938T12 22m0-2q2.9 0 4.95-2.05T19 13t-2.05-4.95T12 6T7.05 8.05T5 13t2.05 4.95T12 20m-2-3l6-4l-6-4z"/></svg>		
+            </div>
+            <div title="New Column" class="w-12 h-12 flex items-center justify-center text-white shadow rounded-full bg-sky-600 hover:bg-sky-700 z-9 cursor-pointer border-2 border-white" @click="editColumn(null)">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14m-7-7v14"/></svg>
+            </div>
+        </div>
+    </div>
+    <!-- Footer -->
+    <div class="flex justify-between items-center bg-white px-4 py-2 shadow text-xs text-gray-600 text-center">
+        <div class="flex justify-between md:justify-start items-center gap-2 flex-1">
+            <div class="flex items-center"><span class="flex w-2 h-2 me-1 bg-green-500 rounded-full"></span> <span x-text="(numClients == 1 ? '1 person' : `${numClients} people`) + ' online'"></span></div>
+        </div>
+        <p class="text-xs text-gray-600 text-center hidden md:block"><a href="https://github.com/ekaputra07/go-retro" class="underline" target="_blank">GoRetro</a> - A minimalist yet fun retro board for happy teams 😉</p>
+    </div>
+    <!-- /Footer -->
+</div>
+<!-- /bottom menus -->
+{{ end }}

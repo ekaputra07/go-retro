@@ -26,7 +26,7 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
-var boardTpl = template.Must(template.ParseFiles("web/templates/board.html"))
+var boardTpl = template.Must(template.ParseGlob("web/templates/*.html"))
 
 func init() {
 	gob.Register(uuid.UUID{})
@@ -121,7 +121,7 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 		log.Printf("new user created with id=%s", u.ID)
 	}
 
-	if err := boardTpl.Execute(w, nil); err != nil {
+	if err := boardTpl.ExecuteTemplate(w, "base", nil); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }

@@ -1,0 +1,30 @@
+{{ define "card_modal" }}
+<!-- card modal -->
+<div class="fixed inset-0 flex h-screen w-full items-end md:items-center justify-center z-10" x-show="openCardModal">
+    <div class="absolute inset-0 bg-black opacity-50"></div>
+    <div class="md:p-4 md:max-w-lg mx-auto w-full flex-1 relative overflow-hidden">
+        <div class="w-full rounded-t-lg md:rounded-md bg-white p-8">
+
+            <h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="!tempCard.id">New card for <span class="leading-normal text-sky-600" x-text="columnNameById(tempCard.column_id)"></span></h2>
+            <h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="tempCard.id">Edit card</h2>
+
+            <div class="mb-4">
+                <input type="text" class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-sky-500" x-model="tempCard.name" x-ref="cardName" autofocus @keydown.enter="saveCard()"/>
+            </div>
+
+            <div class="flex justify-between items-center mt-8 text-right">
+                <a @click="deleteCard(tempCard)" class="text-sm text-red-600 font-medium cursor-pointer" x-show="tempCard.id">Delete</a>
+                <div class="flex-1">
+                <button type="button" class="bg-white hover:bg-gray-100 text-gray-700 font-semibold py-1 px-4 border border-gray-300 rounded-md shadow-sm mr-2" @click="closeModal('card')">
+                    Cancel
+                </button>
+                <button type="button" class="text-white font-semibold py-1 px-4 border border-transparent rounded-md shadow-sm bg-sky-600 hover:bg-sky-700" @click="saveCard()">
+                    Save
+                </button>	
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- /Card Modal -->
+{{ end }}
