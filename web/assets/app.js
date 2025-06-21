@@ -28,6 +28,12 @@ export default () => ({
         done: false,
         display: "00:00",
     },
+    standup: {
+        show: false,
+        title: "Stand-up",
+        current_user_id: null,
+        shuffled_user_ids: [],
+    },
     emojiPicker: null,
     initBoard() {
         this.username = localStorage.getItem('username');
@@ -72,6 +78,10 @@ export default () => ({
                 }
                     , {});
                 this.clients = uniqueClients.map(id => sortedClients.find(c => c.user.id === id));
+
+                if (this.standup.show) {
+                    this.refreshShuffledUserIds();
+                }
                 break;
 
             case 'board.status':
@@ -282,5 +292,48 @@ export default () => ({
     },
     openEmojiPicker() {
         this.emojiPicker.showPicker(this.$event.target);
+    },
+    getClientById(id) {
+        return this.clients.find(c => c.user.id === id);
+    },
+    startStandup() {
+        if (this.clients.length < 2) {
+            this.dispatchCustomEvents('flash', 'Not enough people to start a stand-up!');
+            return;
+        }
+        // Fisher-Yates shuffle algorithm
+        const userIds = this.clients.map(c => c.user.id);
+        for (let i = userIds.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [userIds[i], userIds[j]] = [userIds[j], userIds[i]];
+        }
+        this.standup.shuffled_user_ids = userIds;
+        this.setCurrentStandupUser(this.getClientById(userIds[0]));
+        this.standup.show = true;
+    },
+    closeStandup() {
+        this.standup.current_user_id = null;
+        this.standup.shuffled_user_ids = [];
+        this.standup.show = false;
+    },
+    refreshShuffledUserIds() {
+        let newShuffledUserIds = [];
+        let newUserIds = this.clients.map(c => c.user.id).filter(id => !this.standup.shuffled_user_ids.includes(id));
+        let missingUserIds = this.standup.shuffled_user_ids.filter(id => !this.clients.map(c => c.user.id).includes(id));
+
+        if (newUserIds.length > 0) {
+            newShuffledUserIds = [...this.standup.shuffled_user_ids, ...newUserIds];
+        } else {
+            newShuffledUserIds = this.standup.shuffled_user_ids;
+        }
+
+        if (missingUserIds.length > 0) {
+            newShuffledUserIds = newShuffledUserIds.filter(id => !missingUserIds.includes(id));
+        }
+        this.standup.shuffled_user_ids = newShuffledUserIds;
+    },
+    setCurrentStandupUser(client) {
+        this.dispatchCustomEvents('flash', `${client.user.name}'s turn`);
+        this.standup.current_user_id = client.user.id;
     }
 });

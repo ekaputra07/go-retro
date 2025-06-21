@@ -7,8 +7,11 @@
             <!-- Main Page -->
                 <div>
                     <!-- Kanban Board -->
-                    <div class="mt-4">
-                        <div :class="`grid ${gridColsClass()} gap-4 pb-2 items-start`">
+                    <div class="flex justify-items-start mt-4">
+                        <div class="grid grid-cols-1 gap-4 pb-2 items-start" x-show="standup.show">
+                            {{ template "standup" . }}
+                        </div>
+                        <div :class="`flex-1 grid ${gridColsClass()} gap-4 pb-2 items-start`">
                             <template x-for="column in columns" :key="column.id">	
                                     <div class="bg-slate-100 pb-4 rounded-md shadow overflow-y-auto overflow-x-hidden border-t-8 border-sky-600"
                                         style="min-height: 100px"

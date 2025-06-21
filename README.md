@@ -22,6 +22,6 @@ This project is heavily inspired by https://www.dragondropcards.com, here I'm tr
 - [ ] Persistence layer, currently all data stored in memory
 
 ### Development
-The project is Dockerized so you could simply run `docker compose up` and the application should be accessible via `http://localhost:8080`. Or if you're like me, I simply do `go run .` during development.
+The project is Dockerized so you could simply run `docker compose up` and the application should be accessible via `http://localhost:8080`. Or if you're like me, I simply do `make dev` during development.
 
 As I'm not a UI guy, I steal and modify the board HTML from https://github.com/mithicher/tasksgram by [@mithicher](https://github.com/mithicher/tasksgram) which perfectly suite my needs for a clean design powered by AlpineJS and Tailwind CSS.
