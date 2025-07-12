@@ -63,6 +63,15 @@ export default () => ({
         this.socket.addEventListener("message", (event) => {
             app.onWsEvent(event);
         });
+
+        this.socket.addEventListener("close", (event) => {
+            app.socket = null;
+            app.dispatchCustomEvents("flash", "You're disconnected. Reconnecting...");
+            console.log(`Disconnected from WebSocket: ${event.code} ${event.reason}`);
+            setTimeout(() => {
+                app.wsConnect(username);
+            }, 5000);
+        });
     },
     onWsEvent(event) {
         const e = JSON.parse(event.data);
