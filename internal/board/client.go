@@ -52,7 +52,7 @@ func (c *Client) write() {
 		log.Printf("client=%s --> %v", c.ID, msg.Type)
 		if err := c.conn.WriteJSON(msg); err != nil {
 			log.Printf("client=%s error writing --> %v", c.ID, err)
-			break
+			continue
 		}
 	}
 }
