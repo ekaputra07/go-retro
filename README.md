@@ -1,6 +1,6 @@
 # go-retro
 
-A minimalist yet fun retro board for happy teams 😉
+Minimalist retro board for happy teams 😉
 
 ![screenshot](https://github.com/ekaputra07/go-retro/blob/main/screenshot.png)
 
