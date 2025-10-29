@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (b *Board) createColumn(msg *message) error {
+func (b *Board) createColumn(msg message) error {
 	data := msg.Data.(map[string]any)
 	name, ok := data["name"]
 	if !ok {
@@ -16,7 +16,7 @@ func (b *Board) createColumn(msg *message) error {
 	return err
 }
 
-func (b *Board) deleteColumn(msg *message) error {
+func (b *Board) deleteColumn(msg message) error {
 	data := msg.Data.(map[string]any)
 	id, ok := data["id"]
 	if !ok {
@@ -25,7 +25,7 @@ func (b *Board) deleteColumn(msg *message) error {
 	return b.db.DeleteColumn(uuid.MustParse(id.(string)))
 }
 
-func (b *Board) updateColumn(msg *message) error {
+func (b *Board) updateColumn(msg message) error {
 	data := msg.Data.(map[string]any)
 
 	// get column

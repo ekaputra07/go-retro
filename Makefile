@@ -15,5 +15,8 @@ dev: npm-build
 	GORETRO_SESSION_SECURE=false \
 	go run .
 
+build:
+	go build -v ./...
+
 test:
-	go test ./...
+	go test -v ./...
