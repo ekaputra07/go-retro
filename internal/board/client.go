@@ -18,7 +18,7 @@ type Client struct {
 
 	board   *Board
 	conn    *websocket.Conn
-	message chan *message
+	message chan message
 }
 
 // read reads message from socket
@@ -33,8 +33,8 @@ func (c *Client) read() {
 		}
 		log.Printf("client=%s <-- %s", c.ID, msg.Type)
 
-		msg.client = c
-		c.board.message <- &msg
+		msg.fromClient = c
+		c.board.message <- msg
 	}
 }
 
@@ -42,13 +42,6 @@ func (c *Client) read() {
 func (c *Client) write() {
 	defer c.conn.Close()
 	for msg := range c.message {
-		// don't send update message to self
-		if msg.client != nil {
-			if msg.client.User.ID == c.User.ID {
-				continue
-			}
-		}
-
 		log.Printf("client=%s --> %v", c.ID, msg.Type)
 		if err := c.conn.WriteJSON(msg); err != nil {
 			log.Printf("client=%s error writing --> %v", c.ID, err)
@@ -80,6 +73,6 @@ func NewClient(conn *websocket.Conn, user *storage.User, board *Board) *Client {
 		JoinedAt: time.Now().Unix(),
 		board:    board,
 		conn:     conn,
-		message:  make(chan *message),
+		message:  make(chan message),
 	}
 }

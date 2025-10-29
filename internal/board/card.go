@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func (b *Board) createCard(msg *message) error {
+func (b *Board) createCard(msg message) error {
 	data := msg.Data.(map[string]any)
 	name, ok := data["name"]
 	if !ok {
@@ -25,7 +25,7 @@ func (b *Board) createCard(msg *message) error {
 	return err
 }
 
-func (b *Board) deleteCard(msg *message) error {
+func (b *Board) deleteCard(msg message) error {
 	data := msg.Data.(map[string]any)
 	id, ok := data["id"]
 	if !ok {
@@ -34,7 +34,7 @@ func (b *Board) deleteCard(msg *message) error {
 	return b.db.DeleteCard(uuid.MustParse(id.(string)))
 }
 
-func (b *Board) updateCard(msg *message) error {
+func (b *Board) updateCard(msg message) error {
 	data := msg.Data.(map[string]any)
 
 	// get card
@@ -65,7 +65,7 @@ func (b *Board) updateCard(msg *message) error {
 	return b.db.UpdateCard(card)
 }
 
-func (b *Board) voteCard(msg *message) error {
+func (b *Board) voteCard(msg message) error {
 	data := msg.Data.(map[string]any)
 
 	// get card

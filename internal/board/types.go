@@ -23,7 +23,6 @@ type message struct {
 	Type messageType `json:"type"`
 	Data any         `json:"data"`
 
-	// for inbound message, client is assigned when the message is received
-	// for outbound message, client is used to exclude the sender from receiving the message
-	client *Client
+	// from client: assigned when the message is received
+	fromClient *Client
 }
