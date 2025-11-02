@@ -1,21 +1,17 @@
 package main
 
 import (
-	"context"
 	"encoding/gob"
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/ekaputra07/go-retro/internal/board"
-	"github.com/ekaputra07/go-retro/internal/storage"
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
-	"github.com/gorilla/sessions"
 	"github.com/gorilla/websocket"
 )
 
@@ -26,45 +22,11 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
-var boardTpl = template.Must(template.ParseGlob("web/templates/*.html"))
+
+var boardTpl = template.Must(template.ParseGlob("ui/templates/*.html"))
 
 func init() {
 	gob.Register(uuid.UUID{})
-}
-
-type app struct {
-	db      storage.Storage
-	manager *board.BoardManager
-	router  *mux.Router
-	session *sessions.CookieStore
-}
-
-func (a *app) start() context.CancelFunc {
-	// session store
-	secret := os.Getenv("GORETRO_SESSION_SECRET")
-	secure := os.Getenv("GORETRO_SESSION_SECURE") != "false" // secure by default
-	if secret == "" {
-		log.Fatalln("GORETRO_SESSION_SECRET not set!")
-	}
-	a.session = sessions.NewCookieStore([]byte(secret))
-	a.session.Options = &sessions.Options{Secure: secure}
-
-	// start WS server
-	a.manager = board.NewBoardManager(a.db)
-	ctx, cancel := context.WithCancel(context.Background())
-	go a.manager.Start(ctx)
-
-	// setup routes
-	a.router = mux.NewRouter()
-	a.router.Use(a.loggingMiddleware)
-	a.router.Use(a.cacheControlMiddleware)
-	a.router.HandleFunc("/health", a.health)
-	a.router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("web/public"))))
-	a.router.HandleFunc("/b/{board}/ws", a.websocket)
-	a.router.HandleFunc("/b/{board}", a.board)
-	a.router.HandleFunc("/", a.generateBoard)
-
-	return cancel
 }
 
 func (a *app) loggingMiddleware(next http.Handler) http.Handler {
@@ -81,7 +43,6 @@ func (a *app) cacheControlMiddleware(next http.Handler) http.Handler {
 }
 
 func (a *app) health(w http.ResponseWriter, _ *http.Request) {
-	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, "ok")
 }
 
@@ -109,20 +70,20 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 	if createUser {
 		u, err := a.db.CreateUser()
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			a.serverError(w, r, err)
 			return
 		}
 
 		session.Values["user_id"] = u.ID
 		if err := session.Save(r, w); err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			a.serverError(w, r, err)
 			return
 		}
-		log.Printf("new user created with id=%s", u.ID)
+		a.logger.Info(fmt.Sprintf("new user created with id=%s", u.ID))
 	}
 
 	if err := boardTpl.ExecuteTemplate(w, "base", nil); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		a.serverError(w, r, err)
 	}
 }
 
@@ -134,7 +95,7 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 
 	user, err := a.db.GetUser(userID)
 	if err != nil {
-		http.Error(w, "unauthorized access", http.StatusUnauthorized)
+		a.clientError(w, http.StatusUnauthorized)
 		return
 	}
 
@@ -147,14 +108,14 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	if user.Name != username {
 		user.Name = username
 		if err = a.db.UpdateUser(user); err != nil {
-			http.Error(w, "server error", http.StatusInternalServerError)
+			a.serverError(w, r, err)
 			return
 		}
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Println(err)
+		a.serverError(w, r, err)
 		return
 	}
 	defer conn.Close()

@@ -3,6 +3,7 @@ package board
 import (
 	"context"
 	"log"
+	"log/slog"
 
 	"github.com/ekaputra07/go-retro/internal/storage"
 	"github.com/google/uuid"
@@ -10,6 +11,7 @@ import (
 
 // BoardManager manages board instances
 type BoardManager struct {
+	logger         *slog.Logger
 	db             storage.Storage
 	boards         map[*Board]bool
 	registerChan   chan *Board
@@ -62,8 +64,9 @@ func (bm *BoardManager) GetOrStartBoard(id uuid.UUID) *Board {
 }
 
 // NewBoardManager creates a new board manager instance
-func NewBoardManager(db storage.Storage) *BoardManager {
+func NewBoardManager(logger *slog.Logger, db storage.Storage) *BoardManager {
 	return &BoardManager{
+		logger:         logger,
 		db:             db,
 		boards:         make(map[*Board]bool),
 		registerChan:   make(chan *Board),

@@ -11,18 +11,18 @@ RUN go mod download
 COPY . .
 
 # Build app
-RUN CGO_ENABLED=0 GOOS=linux go build -o go-retro
+RUN CGO_ENABLED=0 GOOS=linux go build ./cmd/web -o go-retro
 
-FROM node:22-alpine AS web-builder
+FROM node:22-alpine AS ui-builder
 
 # Set the working directory
 WORKDIR /app
 
 # Copy source code
-COPY web web
+COPY ui ui
 
 # Build assets
-WORKDIR /app/web/assets
+WORKDIR /app/ui/assets
 RUN npm install && npm run build
 
 FROM alpine:edge
@@ -36,8 +36,8 @@ WORKDIR /app
 
 # copy the binary and statics from the build stage
 COPY --from=go-builder /app/go-retro .
-COPY --from=web-builder /app/web/templates ./web/templates
-COPY --from=web-builder /app/web/public ./web/public
+COPY --from=ui-builder /app/ui/templates ./ui/templates
+COPY --from=ui-builder /app/ui/public ./ui/public
 
 # Set the entry point
 ENTRYPOINT [ "./go-retro" ]

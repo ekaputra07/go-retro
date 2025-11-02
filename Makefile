@@ -1,8 +1,8 @@
 npm-deps:
-	cd web/assets && npm install
+	cd ui/assets && npm install
 
 npm-build:
-	cd web/assets && npm run build
+	cd ui/assets && npm run build
 
 go-deps:
 	go mod tidy
@@ -10,13 +10,9 @@ go-deps:
 setup: go-deps npm-deps
 
 dev: npm-build
-	GORETRO_HOST=localhost \
-	GORETRO_SESSION_SECRET=Bve8zfg8RvNJHh8jxxEAVj8oe00bE2QY \
-	GORETRO_SESSION_SECURE=false \
-	go run .
-
+	go run ./cmd/web -secret=Bve8zfg8RvNJHh8jxxEAVj8oe00bE2QY
 build:
-	go build -v ./...
+	go build -v ./cmd/web -o go-retro
 
 test:
 	go test -v ./...
