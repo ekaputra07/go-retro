@@ -2,16 +2,13 @@ package main
 
 import (
 	"encoding/gob"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
-	"os"
-	"strings"
 
 	"github.com/ekaputra07/go-retro/internal/board"
 	"github.com/google/uuid"
-	"github.com/gorilla/handlers"
-	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
@@ -23,21 +20,15 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-var boardTpl = template.Must(template.ParseGlob("ui/templates/*.html"))
+var boardTpl = template.Must(template.ParseGlob("web/templates/*.html"))
 
 func init() {
 	gob.Register(uuid.UUID{})
 }
 
-func (a *app) loggingMiddleware(next http.Handler) http.Handler {
-	return handlers.LoggingHandler(os.Stdout, next)
-}
-
-func (a *app) cacheControlMiddleware(next http.Handler) http.Handler {
+func (a *app) cacheMiddleware(next http.Handler, maxAgeSecond int) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/static/") {
-			w.Header().Set("Cache-Control", "public, max-age=3600")
-		}
+		w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", maxAgeSecond))
 		next.ServeHTTP(w, r)
 	})
 }
@@ -79,7 +70,7 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 			a.serverError(w, r, err)
 			return
 		}
-		a.logger.Info(fmt.Sprintf("new user created with id=%s", u.ID))
+		a.logger.Info("new user created", "id", u.ID)
 	}
 
 	if err := boardTpl.ExecuteTemplate(w, "base", nil); err != nil {
@@ -89,19 +80,22 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 
 func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	// validate session (make sure user is present) before upgrading the connection
-	// TODO: Move this check to a middleware
+	// TODO: Move this check to a middleware?
 	session, _ := a.session.Get(r, SESSION_NAME)
-	userID := session.Values["user_id"].(uuid.UUID)
+	userID, ok := session.Values["user_id"]
+	if !ok {
+		a.clientError(w, r, http.StatusUnauthorized, errors.New("session missing user_id"))
+		return
+	}
 
-	user, err := a.db.GetUser(userID)
+	user, err := a.db.GetUser(userID.(uuid.UUID))
 	if err != nil {
-		a.clientError(w, http.StatusUnauthorized)
+		a.clientError(w, r, http.StatusUnauthorized, err)
 		return
 	}
 
 	// all good, allow connection
-	vars := mux.Vars(r)
-	boardID := vars["board"]
+	boardID := r.PathValue("board")
 	username := r.URL.Query().Get("u")
 
 	// update name if different

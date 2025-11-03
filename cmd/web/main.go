@@ -33,14 +33,19 @@ func main() {
 	// config
 	conf := config{}
 	flag.IntVar(&conf.port, "port", 8080, "Port to listen")
-	flag.StringVar(&conf.staticDir, "staticDir", "./ui/public", "Directory of static files")
-	flag.StringVar(&conf.secret, "secret", "secret!", "Session secret")
+	flag.StringVar(&conf.staticDir, "staticDir", "./web/public", "Directory of static files")
+	flag.StringVar(&conf.secret, "secret", os.Getenv("GORETRO_SESSION_SECRET"), "Session secret")
 	flag.BoolVar(&conf.secure, "secure", false, "Secure cookie by default")
 	flag.Parse()
 
-	// make sure secret is manually set
-	if conf.secret == "secret!" {
-		panic("Secret wasn't properly set!")
+	// make sure secret is not empty
+	if conf.secret == "" {
+		fmt.Println(
+			"Secret is missing!",
+			"Set secret via environment variable `GORETRO_SESSION_SECRET` (recommended)",
+			"or via `-secret` flag.",
+		)
+		os.Exit(1)
 	}
 
 	// logger

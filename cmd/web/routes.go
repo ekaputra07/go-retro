@@ -2,21 +2,17 @@ package main
 
 import (
 	"net/http"
-
-	"github.com/gorilla/mux"
 )
 
-func (a *app) routes() *mux.Router {
-	// static file server
-	fileServer := http.FileServer(http.Dir("./ui/public"))
+func (a *app) routes() *http.ServeMux {
+	// static file server with cache middleware (max-age: 3600)
+	fileServer := a.cacheMiddleware(http.FileServer(http.Dir(a.config.staticDir)), 3600)
 
-	router := mux.NewRouter()
-	router.Use(a.loggingMiddleware)
-	router.Use(a.cacheControlMiddleware)
-	router.HandleFunc("/health", a.health)
-	router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", fileServer))
-	router.HandleFunc("/b/{board}/ws", a.websocket)
-	router.HandleFunc("/b/{board}", a.board)
-	router.HandleFunc("/", a.generateBoard)
-	return router
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /{$}", a.generateBoard)
+	mux.HandleFunc("GET /health", a.health)
+	mux.Handle("GET /static/", http.StripPrefix("/static/", fileServer))
+	mux.HandleFunc("GET /b/{board}", a.board)
+	mux.HandleFunc("/b/{board}/ws", a.websocket)
+	return mux
 }

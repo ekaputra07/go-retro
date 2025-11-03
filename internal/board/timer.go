@@ -2,7 +2,7 @@ package board
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 )
 
@@ -34,6 +34,7 @@ type timer struct {
 	state             chan *timer
 	statusMessage     string
 	lastCommandClient *Client
+	logger            *slog.Logger
 }
 
 func (t *timer) updateDisplay() {
@@ -44,7 +45,7 @@ func (t *timer) updateDisplay() {
 }
 
 func (t *timer) run() {
-	log.Println("timer started")
+	t.logger.Info("timer started")
 	tick := time.Tick(1 * time.Second)
 	for {
 		select {
@@ -55,7 +56,7 @@ func (t *timer) run() {
 				// done
 				if (t.duration - t.elapsed) == 0 {
 					t.Status = timerStatusDone
-					log.Println("timer done")
+					t.logger.Info("timer done")
 				}
 				t.updateDisplay()
 				t.state <- t
@@ -70,7 +71,7 @@ func (t *timer) run() {
 			if cmd.is("start") && (t.Status == timerStatusStopped || t.Status == timerStatusDone) {
 				d, err := time.ParseDuration(cmd.value)
 				if err != nil {
-					log.Printf("unable to parse timer duration: %v", err)
+					t.logger.Error("unable to parse timer duration", "err", err)
 					continue
 				}
 				t.duration = d
@@ -79,13 +80,13 @@ func (t *timer) run() {
 				t.updateDisplay()
 				t.statusMessage = fmt.Sprintf("%s started the timer", cmd.client.User.Name)
 				t.state <- t
-				log.Println("timer running")
+				t.logger.Info("timer running")
 
 			} else if cmd.is("start") && t.Status == timerStatusPaused {
 				t.Status = timerStatusRunning
 				t.statusMessage = fmt.Sprintf("%s resumed the timer", cmd.client.User.Name)
 				t.state <- t
-				log.Println("timer resumed")
+				t.logger.Info("timer resumed")
 
 			} else if cmd.is("stop") {
 				t.Status = timerStatusStopped
@@ -93,23 +94,23 @@ func (t *timer) run() {
 				t.elapsed = 0
 				t.statusMessage = fmt.Sprintf("%s stoped the timer", cmd.client.User.Name)
 				t.state <- t
-				log.Println("timer stopped")
+				t.logger.Info("timer stopped")
 
 			} else if cmd.is("pause") {
 				t.statusMessage = fmt.Sprintf("%s paused the timer", cmd.client.User.Name)
 				t.Status = timerStatusPaused
 				t.state <- t
-				log.Println("timer paused")
+				t.logger.Info("timer paused")
 
 			} else if cmd.is("destroy") {
-				log.Println("timer destroyed")
+				t.logger.Info("timer destroyed")
 				return
 			}
 		}
 	}
 }
 
-func newTimer() *timer {
+func newTimer(logger *slog.Logger) *timer {
 	cmd := make(chan timerCmd)
 	state := make(chan *timer)
 
@@ -118,5 +119,6 @@ func newTimer() *timer {
 		Display: "00:00",
 		cmd:     cmd,
 		state:   state,
+		logger:  logger,
 	}
 }
