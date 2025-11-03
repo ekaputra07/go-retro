@@ -3,7 +3,7 @@ package board
 import (
 	"errors"
 	"fmt"
-	"log"
+	"log/slog"
 	"math/rand"
 	"slices"
 
@@ -22,6 +22,7 @@ var defaultColumns = []string{"Good", "Bad", "Questions", "Emoji"}
 type Board struct {
 	*storage.Board
 	manager *BoardManager
+	logger  *slog.Logger
 	db      storage.Storage
 	clients map[*Client]bool
 	avatars map[int]bool
@@ -50,7 +51,7 @@ func (b *Board) RemoveClient(client *Client) {
 
 // Start starts the board and board's timer
 func (b *Board) Start() {
-	log.Printf("board=%s started", b.ID)
+	b.logger.Info("board started", "board", b.ID)
 
 	// start the timer
 	go b.timer.run()
@@ -70,15 +71,15 @@ func (b *Board) listen() {
 			no := b.notificationMessage(fmt.Sprintf("%s joined", client.User.Name))
 
 			// broadcast user state and notification to all except to newly joined client
-			b.broadcast([]message{us, no}, client)
+			b.broadcast([]message{us, no}, client.User)
 
-			// send joined client all messages except notification
+			// send joined user all messages except notification
 			// also send timer state only when its running or paused
 			msgs := []message{us, bs}
 			if slices.Contains([]timerStatus{timerStatusRunning, timerStatusPaused}, b.timer.Status) {
 				msgs = append(msgs, b.timerStateMessage())
 			}
-			b.send(msgs, client)
+			b.send(msgs, client.User)
 
 		case client := <-b.leave:
 			b.removeClient(client)
@@ -93,7 +94,7 @@ func (b *Board) listen() {
 		case msg := <-b.message:
 			broadcast, err := b.update(msg)
 			if err != nil {
-				log.Printf("updating board=%s failed: %s", b.ID, err)
+				b.logger.Error("updating board failed", "board", b.ID, "err", err.Error())
 				continue
 			}
 
@@ -113,7 +114,7 @@ func (b *Board) listen() {
 			// if timer state changes was a result of user action (commandClient)
 			// broadcast notification to all except lastCommandClient
 			if t.lastCommandClient != nil {
-				b.broadcast([]message{no}, t.lastCommandClient)
+				b.broadcast([]message{no}, t.lastCommandClient.User)
 			}
 
 		case <-b.stop:
@@ -125,14 +126,14 @@ func (b *Board) listen() {
 
 			// stop and unregister from ws server
 			b.manager.unregisterChan <- b
-			log.Printf("board=%s stopped", b.ID)
+			b.logger.Info("board stopped", "board", b.ID)
 			return
 		}
 	}
 }
 
 func (b *Board) addClient(client *Client) {
-	log.Printf("client=%s joined board=%s\n", client.ID, b.ID)
+	b.logger.Info("client join board", "board", b.ID, "client", client.ID)
 	avatarID := b.uniqueAvatarID()
 	// TODO: avatar should be assigned to user not client
 	client.AvatarID = avatarID
@@ -142,8 +143,7 @@ func (b *Board) addClient(client *Client) {
 
 func (b *Board) removeClient(client *Client) {
 	if _, ok := b.clients[client]; ok {
-		log.Printf("client=%s leaving board=%s\n", client.ID, b.ID)
-
+		b.logger.Info("client leave board", "board", b.ID, "client", client.ID)
 		delete(b.clients, client)
 		delete(b.avatars, client.AvatarID)
 
@@ -207,14 +207,14 @@ func (b *Board) boardStateMessage() message {
 	// list columns
 	columns, err := b.db.ListColumn(b.ID)
 	if err != nil {
-		log.Printf("broadcastBoardState failed while fetching columns: %s", err)
+		b.logger.Error("failed fetching columns", "board", b.ID, "err", err.Error())
 		columns = []*storage.Column{}
 	}
 
 	// list cards
 	cards, err := b.db.ListCard(b.ID)
 	if err != nil {
-		log.Printf("broadcastBoardState failed while fetching cards: %s", err)
+		b.logger.Error("failed fetching cards", "board", b.ID, "err", err.Error())
 		cards = []*storage.Card{}
 	}
 	return message{
@@ -244,20 +244,22 @@ func (b *Board) notificationMessage(msg string) message {
 	}
 }
 
-// send sends messages to specific client
-func (b *Board) send(msgs []message, c *Client) {
-	if c == nil {
-		return
-	}
-	for _, m := range msgs {
-		c.message <- m
+// send sends messages to specific user
+func (b *Board) send(msgs []message, user *storage.User) {
+	for c := range b.clients {
+		if user != nil && c.User.ID == user.ID {
+			for _, m := range msgs {
+				c.message <- m
+			}
+		}
+
 	}
 }
 
-// broadcast sends messages to all clients
-func (b *Board) broadcast(msgs []message, exclude *Client) {
+// broadcast sends messages to all users except excludeUser
+func (b *Board) broadcast(msgs []message, excludeUser *storage.User) {
 	for c := range b.clients {
-		if exclude != nil && c.User.ID == exclude.User.ID {
+		if excludeUser != nil && c.User.ID == excludeUser.ID {
 			continue
 		}
 		for _, m := range msgs {
@@ -288,6 +290,7 @@ func getOrCreateBoard(id uuid.UUID, manager *BoardManager) (*Board, error) {
 	return &Board{
 		Board:   b,
 		manager: manager,
+		logger:  manager.logger,
 		db:      manager.db,
 		clients: make(map[*Client]bool),
 		avatars: make(map[int]bool),
@@ -295,7 +298,7 @@ func getOrCreateBoard(id uuid.UUID, manager *BoardManager) (*Board, error) {
 		leave:   make(chan *Client),
 		message: make(chan message),
 		stop:    make(chan struct{}),
-		timer:   newTimer(),
+		timer:   newTimer(manager.logger),
 	}, nil
 }
 

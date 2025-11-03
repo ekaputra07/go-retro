@@ -9,14 +9,13 @@ go-deps:
 
 setup: go-deps npm-deps
 
-dev: npm-build
-	GORETRO_HOST=localhost \
-	GORETRO_SESSION_SECRET=Bve8zfg8RvNJHh8jxxEAVj8oe00bE2QY \
-	GORETRO_SESSION_SECURE=false \
-	go run .
-
 build:
-	go build -v ./...
+	go build -v -o dist/goretro-web ./cmd/web
 
 test:
 	go test -v ./...
+
+run:
+	go run ./cmd/web -secret dev_Bve8zfg8RvNJHh8jxxEAVj8oe00bE2QY
+
+dev: npm-build run

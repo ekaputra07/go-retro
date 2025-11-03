@@ -1,7 +1,7 @@
 package board
 
 import (
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/ekaputra07/go-retro/internal/storage"
@@ -17,6 +17,7 @@ type Client struct {
 	AvatarID int           `json:"avatar_id"`
 
 	board   *Board
+	logger  *slog.Logger
 	conn    *websocket.Conn
 	message chan message
 }
@@ -28,10 +29,10 @@ func (c *Client) read() {
 		var msg message
 		err := c.conn.ReadJSON(&msg)
 		if err != nil {
-			log.Printf("client=%s error reading <-- %s", c.ID, err)
+			c.logger.Error("client error reading <--", "id", c.ID, "err", err.Error())
 			break
 		}
-		log.Printf("client=%s <-- %s", c.ID, msg.Type)
+		c.logger.Info("client <--", "id", c.ID, "type", msg.Type)
 
 		msg.fromClient = c
 		c.board.message <- msg
@@ -42,9 +43,9 @@ func (c *Client) read() {
 func (c *Client) write() {
 	defer c.conn.Close()
 	for msg := range c.message {
-		log.Printf("client=%s --> %v", c.ID, msg.Type)
+		c.logger.Info("client -->", "id", c.ID, "type", msg.Type)
 		if err := c.conn.WriteJSON(msg); err != nil {
-			log.Printf("client=%s error writing --> %v", c.ID, err)
+			c.logger.Error("client error writing -->", "id", c.ID, "err", err.Error())
 			continue
 		}
 	}
@@ -52,7 +53,7 @@ func (c *Client) write() {
 
 // Start starts the client read (goroutine) and write (blocking) process
 func (c *Client) Start() {
-	log.Printf("client=%s started\n", c.ID)
+	c.logger.Info("client started", "id", c.ID)
 	go c.write()
 
 	// read message from connection
@@ -61,7 +62,7 @@ func (c *Client) Start() {
 
 // Stop stops the client by closing the message channel
 func (c *Client) Stop() {
-	log.Printf("client=%s stopped\n", c.ID)
+	c.logger.Info("client stopped", "id", c.ID)
 	close(c.message)
 }
 
@@ -72,6 +73,7 @@ func NewClient(conn *websocket.Conn, user *storage.User, board *Board) *Client {
 		User:     user,
 		JoinedAt: time.Now().Unix(),
 		board:    board,
+		logger:   board.logger,
 		conn:     conn,
 		message:  make(chan message),
 	}

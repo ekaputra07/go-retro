@@ -5,10 +5,8 @@ services:
     volumes:
       - .:/app
       - ./go-cache:/go # cache go modules on our machine
-    environment:
-      - GORETRO_HOST=0.0.0.0
-      - GORETRO_SESSION_SECRET=Bve8zfg8RvNJHh8jxxEAVj8oe00bE2QY
-      - GORETRO_SESSION_SECURE=false # on development, we don't need to use https
     ports:
       - "8080:8080"
-    entrypoint: go run .
+    environment:
+      - GORETRO_SESSION_SECRET=dev_Bve8zfg8RvNJHh8jxxEAVj8oe00bE2QY
+    entrypoint: go run ./cmd/web

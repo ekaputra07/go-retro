@@ -2,7 +2,7 @@ package board
 
 import (
 	"context"
-	"log"
+	"log/slog"
 
 	"github.com/ekaputra07/go-retro/internal/storage"
 	"github.com/google/uuid"
@@ -10,6 +10,7 @@ import (
 
 // BoardManager manages board instances
 type BoardManager struct {
+	logger         *slog.Logger
 	db             storage.Storage
 	boards         map[*Board]bool
 	registerChan   chan *Board
@@ -17,53 +18,54 @@ type BoardManager struct {
 }
 
 // Start starts the board manager goroutine
-func (bm *BoardManager) Start(ctx context.Context) {
-	log.Println("board-manager running...")
+func (m *BoardManager) Start(ctx context.Context) {
+	m.logger.Info("board-manager running...")
 	for {
 		select {
-		case b := <-bm.registerChan:
-			bm.boards[b] = true
-			log.Printf("board=%s registered", b.ID)
-		case b := <-bm.unregisterChan:
-			delete(bm.boards, b)
-			log.Printf("board=%s unregistered", b.ID)
+		case b := <-m.registerChan:
+			m.boards[b] = true
+			m.logger.Info("board registered", "id", b.ID)
+		case b := <-m.unregisterChan:
+			delete(m.boards, b)
+			m.logger.Info("board unregistered", "id", b.ID)
 		case <-ctx.Done():
-			log.Println("board-manager stopped.")
+			m.logger.Info("board-manager stopped.")
 			return
 		}
 	}
 }
 
 // RegisterBoard registers a board to the manager
-func (bm *BoardManager) RegisterBoard(b *Board) {
-	bm.registerChan <- b
+func (m *BoardManager) RegisterBoard(b *Board) {
+	m.registerChan <- b
 }
 
 // UnregisterBoard unregisters a board from the manager
-func (bm *BoardManager) UnregisterBoard(b *Board) {
-	bm.unregisterChan <- b
+func (m *BoardManager) UnregisterBoard(b *Board) {
+	m.unregisterChan <- b
 }
 
 // GetOrStartBoard returns a board instance by ID, if not exist, it will start a new board
-func (bm *BoardManager) GetOrStartBoard(id uuid.UUID) *Board {
+func (m *BoardManager) GetOrStartBoard(id uuid.UUID) *Board {
 	// if board is running, return it
-	for b := range bm.boards {
+	for b := range m.boards {
 		if b.ID == id {
-			log.Printf("board=%s still running\n", b.ID)
+			m.logger.Info("board still running", "id", b.ID)
 			return b
 		}
 	}
 
 	// if not, create a new board, register it, and start it
-	board, _ := getOrCreateBoard(id, bm)
-	bm.RegisterBoard(board)
+	board, _ := getOrCreateBoard(id, m)
+	m.RegisterBoard(board)
 	board.Start()
 	return board
 }
 
 // NewBoardManager creates a new board manager instance
-func NewBoardManager(db storage.Storage) *BoardManager {
+func NewBoardManager(logger *slog.Logger, db storage.Storage) *BoardManager {
 	return &BoardManager{
+		logger:         logger,
 		db:             db,
 		boards:         make(map[*Board]bool),
 		registerChan:   make(chan *Board),
