@@ -33,9 +33,8 @@ func (a *app) health(w http.ResponseWriter, _ *http.Request) {
 	fmt.Fprint(w, "ok")
 }
 
-func (a *app) generateBoard(w http.ResponseWriter, r *http.Request) {
-	id := uuid.New()
-	http.Redirect(w, r, fmt.Sprintf("/b/%s", id), http.StatusSeeOther)
+func (a *app) generateBoardID(w http.ResponseWriter, r *http.Request) {
+	http.Redirect(w, r, fmt.Sprintf("/b/%s", uuid.New()), http.StatusSeeOther)
 }
 
 func (a *app) board(w http.ResponseWriter, r *http.Request) {
@@ -103,6 +102,7 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// upgrade to websocket conn
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		a.serverError(w, r, err)
@@ -111,7 +111,11 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	// start board process
-	b := a.manager.GetOrStartBoard(uuid.MustParse(boardID))
+	b, err := a.manager.GetOrCreateBoardProcess(uuid.MustParse(boardID))
+	if err != nil {
+		a.serverError(w, r, err)
+		return
+	}
 
 	// create client and add to board
 	client := board.NewClient(conn, user, b)

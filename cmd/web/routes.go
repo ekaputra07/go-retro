@@ -9,7 +9,7 @@ func (a *app) routes() http.Handler {
 	fileServer := a.staticCache(http.FileServer(http.Dir(a.config.staticDir)), 3600)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", a.generateBoard)
+	mux.HandleFunc("GET /{$}", a.generateBoardID)
 	mux.HandleFunc("GET /health", a.health)
 	mux.Handle("GET /static/", http.StripPrefix("/static/", fileServer))
 	mux.HandleFunc("GET /b/{board}", a.board)

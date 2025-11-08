@@ -8,7 +8,6 @@ import (
 
 	"github.com/ekaputra07/go-retro/internal/models"
 	"github.com/ekaputra07/go-retro/internal/store"
-	"github.com/google/uuid"
 )
 
 // Board represents a single board instance that can be joined by clients
@@ -243,39 +242,6 @@ func (b *Board) broadcast(msgs []message, excludeUser *models.User) {
 			c.message <- m
 		}
 	}
-}
-
-// getOrCreateBoard returns a board instance by ID, if not exist, it will create a new board
-func getOrCreateBoard(id uuid.UUID, manager *BoardManager) (*Board, error) {
-	b, err := manager.store.Boards.Get(id)
-
-	// if board not in store, create new one
-	if err != nil {
-		// these store operation should run in transaction
-		b, err = manager.store.Boards.Create(id)
-		if err != nil {
-			return nil, err
-		}
-		for _, c := range manager.initialBoardColumns {
-			_, err := manager.store.Columns.Create(c, b.ID)
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
-	return &Board{
-		Board:   b,
-		manager: manager,
-		logger:  manager.logger,
-		store:   manager.store,
-		clients: make(map[*Client]bool),
-		join:    make(chan *Client),
-		leave:   make(chan *Client),
-		message: make(chan message),
-		stop:    make(chan struct{}),
-		timer:   newTimer(manager.logger),
-	}, nil
 }
 
 // handleTimerCommand handles timer command message

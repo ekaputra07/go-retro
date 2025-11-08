@@ -46,21 +46,70 @@ func (m *BoardManager) UnregisterBoard(b *Board) {
 	m.unregisterChan <- b
 }
 
-// GetOrStartBoard returns a board instance by ID, if not exist, it will start a new board
-func (m *BoardManager) GetOrStartBoard(id uuid.UUID) *Board {
-	// if board is running, return it
-	for b := range m.boards {
-		if b.ID == id {
-			m.logger.Info("board still running", "id", b.ID)
-			return b
+// CreateBoard creates board instance
+func (m *BoardManager) CreateBoard(id uuid.UUID) (*Board, error) {
+	// try to get existing board from DB
+	b, err := m.store.Boards.Get(id)
+
+	// not found? create new board record with their initial columns
+	if err != nil {
+		// TODO: these store operation should run in transaction (on real database)
+		b, err = m.store.Boards.Create(id)
+		if err != nil {
+			return nil, err
+		}
+		for _, c := range m.initialBoardColumns {
+			_, err := m.store.Columns.Create(c, b.ID)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
-	// if not, create a new board, register it, and start it
-	board, _ := getOrCreateBoard(id, m)
-	m.RegisterBoard(board)
-	board.Start()
-	return board
+	// start and register new board process to the manager
+	board := &Board{
+		Board:   b,
+		manager: m,
+		logger:  m.logger,
+		store:   m.store,
+		clients: make(map[*Client]bool),
+		join:    make(chan *Client),
+		leave:   make(chan *Client),
+		message: make(chan message),
+		stop:    make(chan struct{}),
+		timer:   newTimer(m.logger),
+	}
+	return board, nil
+}
+
+// GetBoardProcess get running board from manager's boards registry
+func (m *BoardManager) GetBoardProcess(id uuid.UUID) *Board {
+	for b := range m.boards {
+		if b.ID == id {
+			return b
+		}
+	}
+	return nil
+}
+
+// GetOrCreateBoardProcess returns existing or new board process
+func (m *BoardManager) GetOrCreateBoardProcess(id uuid.UUID) (*Board, error) {
+	// board already running, return
+	if proc := m.GetBoardProcess(id); proc != nil {
+		m.logger.Info("board already running", "id", id)
+		return proc, nil
+	}
+
+	m.logger.Info("new board started", "id", id)
+	// not running, create new process (and new record if needed)
+	b, err := m.CreateBoard(id)
+	if err != nil {
+		return nil, err
+	}
+	b.Start()
+	m.RegisterBoard(b)
+
+	return b, nil
 }
 
 // NewBoardManager creates a new board manager instance

@@ -13,7 +13,7 @@ style="min-height: 150px; width: 200px;"
 <div class="py-2">
     <template x-for="uid in standup.shuffled_user_ids" :key="uid">
         <div x-data="{ client: getClientById(uid) }" :class="`flex justify-between items-center cursor-pointer px-4 py-2 hover:bg-green-50` + (client.user.id === standup.current_user_id ? ' bg-green-100' : '')" :title="client.user.name" @click="setCurrentStandupUser(client)">
-            <img :src="'/static/avatar/' + client.avatar_id + '.png'" alt="avatar" class="w-6 h-6 rounded-full border-2 border-white shadow-sm mr-2 cursor-pointer" />
+            <img :src="'/static/avatar/' + client.user.avatar_id + '.png'" alt="avatar" class="w-6 h-6 rounded-full border-2 border-white shadow-sm mr-2 cursor-pointer" />
             <span class="flex-1 font-bold text-sm text-gray-700 cursor-pointer" x-text="client.user.name"></span>
             <span class="relative flex size-3 mr-1" x-show="client.user.id === standup.current_user_id" @click="setCurrentStandupUser(client)">
                 <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-75"></span>

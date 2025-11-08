@@ -37,7 +37,6 @@ func TestGetBoard(t *testing.T) {
 func TestDeleteBoard(t *testing.T) {
 	b := &boards{}
 	nb, _ := b.Create(boardID)
-	b.Create(boardID)
 
 	err := b.Delete(nb.ID)
 	assert.NoError(t, err)
