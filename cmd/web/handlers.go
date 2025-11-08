@@ -4,7 +4,7 @@ import (
 	"encoding/gob"
 	"errors"
 	"fmt"
-	"html/template"
+	"math/rand"
 	"net/http"
 
 	"github.com/ekaputra07/go-retro/internal/board"
@@ -12,7 +12,12 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-const SESSION_NAME = "goretro_session"
+const (
+	SESSION_NAME = "goretro_session"
+	// avatarsCount is the total number of avatars available to choose from.
+	// see: web/public/avatars
+	AVATARS_COUNT = 12
+)
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -20,17 +25,8 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-var boardTpl = template.Must(template.ParseGlob("web/templates/*.html"))
-
 func init() {
 	gob.Register(uuid.UUID{})
-}
-
-func (a *app) cacheMiddleware(next http.Handler, maxAgeSecond int) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", fmt.Sprintf("public, max-age=%d", maxAgeSecond))
-		next.ServeHTTP(w, r)
-	})
 }
 
 func (a *app) health(w http.ResponseWriter, _ *http.Request) {
@@ -47,19 +43,20 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 	createUser := false
 
 	// create new user if:
-	// - session is new
+	// - session is newdb
 	// - user_id in existing user no longer exists
 	if session.IsNew {
 		createUser = true
 	} else {
 		userID := session.Values["user_id"].(uuid.UUID)
-		if _, err := a.db.GetUser(userID); err != nil {
+		if _, err := a.store.Users.Get(userID); err != nil {
 			createUser = true
 		}
 	}
 
 	if createUser {
-		u, err := a.db.CreateUser()
+		avatarID := rand.Intn(AVATARS_COUNT-1) + 1
+		u, err := a.store.Users.Create(avatarID)
 		if err != nil {
 			a.serverError(w, r, err)
 			return
@@ -73,9 +70,8 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 		a.logger.Info("new user created", "id", u.ID)
 	}
 
-	if err := boardTpl.ExecuteTemplate(w, "base", nil); err != nil {
-		a.serverError(w, r, err)
-	}
+	data := newTemplateData(a.config)
+	a.render(w, r, http.StatusOK, data)
 }
 
 func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
@@ -88,7 +84,7 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := a.db.GetUser(userID.(uuid.UUID))
+	user, err := a.store.Users.Get(userID.(uuid.UUID))
 	if err != nil {
 		a.clientError(w, r, http.StatusUnauthorized, err)
 		return
@@ -101,7 +97,7 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	// update name if different
 	if user.Name != username {
 		user.Name = username
-		if err = a.db.UpdateUser(user); err != nil {
+		if err = a.store.Users.Update(user); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
@@ -116,6 +112,7 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 
 	// start board process
 	b := a.manager.GetOrStartBoard(uuid.MustParse(boardID))
+
 	// create client and add to board
 	client := board.NewClient(conn, user, b)
 	b.AddClient(client)

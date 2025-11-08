@@ -4,17 +4,18 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/ekaputra07/go-retro/internal/storage"
+	"github.com/ekaputra07/go-retro/internal/store"
 	"github.com/google/uuid"
 )
 
 // BoardManager manages board instances
 type BoardManager struct {
-	logger         *slog.Logger
-	db             storage.Storage
-	boards         map[*Board]bool
-	registerChan   chan *Board
-	unregisterChan chan *Board
+	logger              *slog.Logger
+	store               *store.Store
+	initialBoardColumns []string
+	boards              map[*Board]bool
+	registerChan        chan *Board
+	unregisterChan      chan *Board
 }
 
 // Start starts the board manager goroutine
@@ -63,12 +64,13 @@ func (m *BoardManager) GetOrStartBoard(id uuid.UUID) *Board {
 }
 
 // NewBoardManager creates a new board manager instance
-func NewBoardManager(logger *slog.Logger, db storage.Storage) *BoardManager {
+func NewBoardManager(logger *slog.Logger, store *store.Store, initialcolumns []string) *BoardManager {
 	return &BoardManager{
-		logger:         logger,
-		db:             db,
-		boards:         make(map[*Board]bool),
-		registerChan:   make(chan *Board),
-		unregisterChan: make(chan *Board),
+		logger:              logger,
+		store:               store,
+		initialBoardColumns: initialcolumns,
+		boards:              make(map[*Board]bool),
+		registerChan:        make(chan *Board),
+		unregisterChan:      make(chan *Board),
 	}
 }

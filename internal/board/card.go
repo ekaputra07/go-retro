@@ -17,11 +17,11 @@ func (b *Board) createCard(msg message) error {
 	if !ok {
 		return errors.New("createCard payload missing `column_id` field")
 	}
-	col, err := b.db.GetColumn(uuid.MustParse(colID.(string)))
+	col, err := b.store.Columns.Get(uuid.MustParse(colID.(string)))
 	if err != nil {
 		return err
 	}
-	_, err = b.db.CreateCard(name.(string), b.ID, col.ID)
+	_, err = b.store.Cards.Create(name.(string), b.ID, col.ID)
 	return err
 }
 
@@ -31,7 +31,7 @@ func (b *Board) deleteCard(msg message) error {
 	if !ok {
 		return errors.New("deleteCard payload missing `id` field")
 	}
-	return b.db.DeleteCard(uuid.MustParse(id.(string)))
+	return b.store.Cards.Delete(uuid.MustParse(id.(string)))
 }
 
 func (b *Board) updateCard(msg message) error {
@@ -42,7 +42,7 @@ func (b *Board) updateCard(msg message) error {
 	if !ok {
 		return errors.New("updateCard payload missing `id` field")
 	}
-	card, err := b.db.GetCard(uuid.MustParse(id.(string)))
+	card, err := b.store.Cards.Get(uuid.MustParse(id.(string)))
 	if err != nil {
 		return err
 	}
@@ -56,13 +56,13 @@ func (b *Board) updateCard(msg message) error {
 	// if colum set, update
 	colID, ok := data["column_id"]
 	if ok {
-		col, err := b.db.GetColumn(uuid.MustParse(colID.(string)))
+		col, err := b.store.Columns.Get(uuid.MustParse(colID.(string)))
 		if err != nil {
 			return err
 		}
 		card.ColumnID = col.ID
 	}
-	return b.db.UpdateCard(card)
+	return b.store.Cards.Update(card)
 }
 
 func (b *Board) voteCard(msg message) error {
@@ -73,7 +73,7 @@ func (b *Board) voteCard(msg message) error {
 	if !ok {
 		return errors.New("voteCard payload missing `id` field")
 	}
-	card, err := b.db.GetCard(uuid.MustParse(id.(string)))
+	card, err := b.store.Cards.Get(uuid.MustParse(id.(string)))
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func (b *Board) voteCard(msg message) error {
 			return fmt.Errorf("vote value of %v is invalid", v)
 		}
 		card.Votes += v
-		return b.db.UpdateCard(card)
+		return b.store.Cards.Update(card)
 	}
 	return nil
 }

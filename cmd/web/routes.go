@@ -4,9 +4,9 @@ import (
 	"net/http"
 )
 
-func (a *app) routes() *http.ServeMux {
+func (a *app) routes() http.Handler {
 	// static file server with cache middleware (max-age: 3600)
-	fileServer := a.cacheMiddleware(http.FileServer(http.Dir(a.config.staticDir)), 3600)
+	fileServer := a.staticCache(http.FileServer(http.Dir(a.config.staticDir)), 3600)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.generateBoard)
@@ -14,5 +14,7 @@ func (a *app) routes() *http.ServeMux {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", fileServer))
 	mux.HandleFunc("GET /b/{board}", a.board)
 	mux.HandleFunc("/b/{board}/ws", a.websocket)
-	return mux
+
+	// apply common headers middleware to all routes
+	return a.commonHeaders(mux)
 }

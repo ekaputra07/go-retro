@@ -1,4 +1,4 @@
-package storage
+package models
 
 import (
 	"time"
@@ -10,13 +10,15 @@ import (
 // Users are not bounded to specific board but are global entities.
 // Allowed to join multiple boards OR join a single board through multiple connection (client)
 type User struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID       uuid.UUID `json:"id"`
+	Name     string    `json:"name"`
+	AvatarID int       `json:"avatar_id"`
 }
 
-func NewUser() *User {
+func NewUser(avatarID int) *User {
 	return &User{
-		ID: uuid.New(),
+		ID:       uuid.New(),
+		AvatarID: avatarID,
 	}
 }
 

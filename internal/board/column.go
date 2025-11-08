@@ -12,7 +12,7 @@ func (b *Board) createColumn(msg message) error {
 	if !ok {
 		return errors.New("createColumn payload missing `name` field")
 	}
-	_, err := b.db.CreateColumn(name.(string), b.ID)
+	_, err := b.store.Columns.Create(name.(string), b.ID)
 	return err
 }
 
@@ -22,7 +22,7 @@ func (b *Board) deleteColumn(msg message) error {
 	if !ok {
 		return errors.New("deleteColumn payload missing `id` field")
 	}
-	return b.db.DeleteColumn(uuid.MustParse(id.(string)))
+	return b.store.Columns.Delete(uuid.MustParse(id.(string)))
 }
 
 func (b *Board) updateColumn(msg message) error {
@@ -33,7 +33,7 @@ func (b *Board) updateColumn(msg message) error {
 	if !ok {
 		return errors.New("updateColumn payload missing `id` field")
 	}
-	col, err := b.db.GetColumn(uuid.MustParse(id.(string)))
+	col, err := b.store.Columns.Get(uuid.MustParse(id.(string)))
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func (b *Board) updateColumn(msg message) error {
 	name, ok := data["name"]
 	if ok {
 		col.Name = name.(string)
-		return b.db.UpdateColumn(col)
+		return b.store.Columns.Update(col)
 	}
 	return nil
 }

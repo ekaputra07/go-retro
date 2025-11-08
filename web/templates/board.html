@@ -1,7 +1,9 @@
 {{ define "board" }}
 <div x-data="app()" x-init="initBoard()" x-cloak class="flex flex-col min-h-screen">
     <div class="flex-1">
+        {{if .EnableTimer}}
 		{{ template "timer" . }}
+        {{end}}
 		
         <div class="py-4 px-6">
             <!-- Main Page -->
@@ -9,7 +11,9 @@
                     <!-- Kanban Board -->
                     <div class="flex justify-items-start mt-4">
                         <div class="grid grid-cols-1 gap-4 pb-2 items-start" x-show="standup.show">
+                            {{if .EnableStandup}}
                             {{ template "standup" . }}
+                            {{end}}
                         </div>
                         <div :class="`flex-1 grid ${gridColsClass()} gap-4 pb-2 items-start`">
                             <template x-for="column in columns" :key="column.id">	
@@ -91,7 +95,10 @@
 	{{ template "username_modal" . }}
 	{{ template "card_modal" . }}
 	{{ template "column_modal" . }}
+    
+    {{if .EnableTimer}}
 	{{ template "timer_modal" . }}
+    {{end}}
 	<!-- /Modals -->
 
 	<!-- bottom menus -->

@@ -4,17 +4,16 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/ekaputra07/go-retro/internal/storage"
+	"github.com/ekaputra07/go-retro/internal/models"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
 // Client represents websocket connection between client (browser) that join a board
 type Client struct {
-	ID       uuid.UUID     `json:"id"`
-	User     *storage.User `json:"user"`
-	JoinedAt int64         `json:"joined_at"`
-	AvatarID int           `json:"avatar_id"`
+	ID       uuid.UUID    `json:"id"`
+	User     *models.User `json:"user"`
+	JoinedAt int64        `json:"joined_at"`
 
 	board   *Board
 	logger  *slog.Logger
@@ -67,7 +66,7 @@ func (c *Client) Stop() {
 }
 
 // NewClient creates a new client instance
-func NewClient(conn *websocket.Conn, user *storage.User, board *Board) *Client {
+func NewClient(conn *websocket.Conn, user *models.User, board *Board) *Client {
 	return &Client{
 		ID:       uuid.New(),
 		User:     user,

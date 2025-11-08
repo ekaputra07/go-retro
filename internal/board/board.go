@@ -4,28 +4,21 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"math/rand"
 	"slices"
 
-	"github.com/ekaputra07/go-retro/internal/storage"
+	"github.com/ekaputra07/go-retro/internal/models"
+	"github.com/ekaputra07/go-retro/internal/store"
 	"github.com/google/uuid"
 )
 
-// avatarsCount is the total number of avatars available to choose from.
-// see: web/public/avatars
-const avatarsCount = 12
-
-// initial columns assigned when the board created
-var defaultColumns = []string{"Good", "Bad", "Questions", "Emoji"}
-
 // Board represents a single board instance that can be joined by clients
 type Board struct {
-	*storage.Board
+	*models.Board
+
 	manager *BoardManager
 	logger  *slog.Logger
-	db      storage.Storage
+	store   *store.Store
 	clients map[*Client]bool
-	avatars map[int]bool
 	timer   *timer
 
 	// client joined and leaved
@@ -134,10 +127,6 @@ func (b *Board) listen() {
 
 func (b *Board) addClient(client *Client) {
 	b.logger.Info("client join board", "board", b.ID, "client", client.ID)
-	avatarID := b.uniqueAvatarID()
-	// TODO: avatar should be assigned to user not client
-	client.AvatarID = avatarID
-	b.avatars[avatarID] = true
 	b.clients[client] = true
 }
 
@@ -145,23 +134,12 @@ func (b *Board) removeClient(client *Client) {
 	if _, ok := b.clients[client]; ok {
 		b.logger.Info("client leave board", "board", b.ID, "client", client.ID)
 		delete(b.clients, client)
-		delete(b.avatars, client.AvatarID)
 
 		// if no joined clients, stop board
 		if len(b.clients) == 0 {
 			close(b.stop)
 		}
 	}
-}
-
-// uniqueAvatarID generates unique avatar ID for a client
-// by checking if the ID is already used by another client recursively
-func (b *Board) uniqueAvatarID() int {
-	randID := rand.Intn(avatarsCount-1) + 1
-	if _, ok := b.avatars[randID]; ok {
-		return b.uniqueAvatarID()
-	}
-	return randID
 }
 
 // update the board and broadcast its status if desired
@@ -205,17 +183,17 @@ func (b *Board) usersStateMessage() message {
 // boardStateMessage builds and returns the board status message
 func (b *Board) boardStateMessage() message {
 	// list columns
-	columns, err := b.db.ListColumn(b.ID)
+	columns, err := b.store.Columns.List(b.ID)
 	if err != nil {
 		b.logger.Error("failed fetching columns", "board", b.ID, "err", err.Error())
-		columns = []*storage.Column{}
+		columns = []*models.Column{}
 	}
 
 	// list cards
-	cards, err := b.db.ListCard(b.ID)
+	cards, err := b.store.Cards.List(b.ID)
 	if err != nil {
 		b.logger.Error("failed fetching cards", "board", b.ID, "err", err.Error())
-		cards = []*storage.Card{}
+		cards = []*models.Card{}
 	}
 	return message{
 		Type: messageTypeBoardStatus,
@@ -225,7 +203,6 @@ func (b *Board) boardStateMessage() message {
 			"cards":   cards,
 		},
 	}
-
 }
 
 // timerStateMessage builds and returns the timer state message
@@ -245,7 +222,7 @@ func (b *Board) notificationMessage(msg string) message {
 }
 
 // send sends messages to specific user
-func (b *Board) send(msgs []message, user *storage.User) {
+func (b *Board) send(msgs []message, user *models.User) {
 	for c := range b.clients {
 		if user != nil && c.User.ID == user.ID {
 			for _, m := range msgs {
@@ -257,7 +234,7 @@ func (b *Board) send(msgs []message, user *storage.User) {
 }
 
 // broadcast sends messages to all users except excludeUser
-func (b *Board) broadcast(msgs []message, excludeUser *storage.User) {
+func (b *Board) broadcast(msgs []message, excludeUser *models.User) {
 	for c := range b.clients {
 		if excludeUser != nil && c.User.ID == excludeUser.ID {
 			continue
@@ -270,17 +247,17 @@ func (b *Board) broadcast(msgs []message, excludeUser *storage.User) {
 
 // getOrCreateBoard returns a board instance by ID, if not exist, it will create a new board
 func getOrCreateBoard(id uuid.UUID, manager *BoardManager) (*Board, error) {
-	b, err := manager.db.GetBoard(id)
+	b, err := manager.store.Boards.Get(id)
 
-	// if board not in DB, create new one
+	// if board not in store, create new one
 	if err != nil {
 		// these store operation should run in transaction
-		b, err = manager.db.CreateBoard(id)
+		b, err = manager.store.Boards.Create(id)
 		if err != nil {
 			return nil, err
 		}
-		for _, c := range defaultColumns {
-			_, err := manager.db.CreateColumn(c, b.ID)
+		for _, c := range manager.initialBoardColumns {
+			_, err := manager.store.Columns.Create(c, b.ID)
 			if err != nil {
 				return nil, err
 			}
@@ -291,9 +268,8 @@ func getOrCreateBoard(id uuid.UUID, manager *BoardManager) (*Board, error) {
 		Board:   b,
 		manager: manager,
 		logger:  manager.logger,
-		db:      manager.db,
+		store:   manager.store,
 		clients: make(map[*Client]bool),
-		avatars: make(map[int]bool),
 		join:    make(chan *Client),
 		leave:   make(chan *Client),
 		message: make(chan message),
