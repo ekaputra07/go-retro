@@ -1,6 +1,7 @@
 package board
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -44,11 +45,14 @@ func (t *timer) updateDisplay() {
 	t.Display = fmt.Sprintf("%02d:%02d", m, s)
 }
 
-func (t *timer) run() {
+func (t *timer) run(ctx context.Context) {
 	t.logger.Info("timer started")
 	tick := time.Tick(1 * time.Second)
 	for {
 		select {
+		case <-ctx.Done():
+			t.logger.Info("timer destroyed")
+			return
 		case <-tick:
 			if t.Status == timerStatusRunning {
 				t.elapsed += 1 * time.Second
@@ -101,10 +105,6 @@ func (t *timer) run() {
 				t.Status = timerStatusPaused
 				t.state <- t
 				t.logger.Info("timer paused")
-
-			} else if cmd.is("destroy") {
-				t.logger.Info("timer destroyed")
-				return
 			}
 		}
 	}

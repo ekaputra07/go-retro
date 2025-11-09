@@ -1,48 +1,44 @@
 package board
 
 import (
-	"errors"
-
 	"github.com/google/uuid"
 )
 
 func (b *Board) createColumn(msg message) error {
-	data := msg.Data.(map[string]any)
-	name, ok := data["name"]
-	if !ok {
-		return errors.New("createColumn payload missing `name` field")
+	var name string
+	if err := msg.stringVar(&name, "name"); err != nil {
+		return err
 	}
-	_, err := b.store.Columns.Create(name.(string), b.ID)
+	_, err := b.store.Columns.Create(name, b.ID)
 	return err
 }
 
 func (b *Board) deleteColumn(msg message) error {
-	data := msg.Data.(map[string]any)
-	id, ok := data["id"]
-	if !ok {
-		return errors.New("deleteColumn payload missing `id` field")
+	var id uuid.UUID
+	if err := msg.uuidVar(&id, "id"); err != nil {
+		return err
 	}
-	return b.store.Columns.Delete(uuid.MustParse(id.(string)))
+	return b.store.Columns.Delete(id)
 }
 
 func (b *Board) updateColumn(msg message) error {
-	data := msg.Data.(map[string]any)
-
-	// get column
-	id, ok := data["id"]
-	if !ok {
-		return errors.New("updateColumn payload missing `id` field")
+	var id uuid.UUID
+	if err := msg.uuidVar(&id, "id"); err != nil {
+		return err
 	}
-	col, err := b.store.Columns.Get(uuid.MustParse(id.(string)))
+
+	col, err := b.store.Columns.Get(id)
 	if err != nil {
 		return err
 	}
 
-	// if name set, update
-	name, ok := data["name"]
-	if ok {
-		col.Name = name.(string)
-		return b.store.Columns.Update(col)
+	// if name set and new name is diff, update!
+	var name string
+	if err := msg.stringVar(&name, "name"); err == nil {
+		if name != col.Name {
+			col.Name = name
+			return b.store.Columns.Update(col)
+		}
 	}
 	return nil
 }

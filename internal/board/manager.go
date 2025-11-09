@@ -30,7 +30,7 @@ func (m *BoardManager) Start(ctx context.Context) {
 			delete(m.boards, b)
 			m.logger.Info("board unregistered", "id", b.ID)
 		case <-ctx.Done():
-			m.logger.Info("board-manager stopped.")
+			m.logger.Info("board-manager stopped")
 			return
 		}
 	}

@@ -1,92 +1,86 @@
 package board
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 )
 
 func (b *Board) createCard(msg message) error {
-	data := msg.Data.(map[string]any)
-	name, ok := data["name"]
-	if !ok {
-		return errors.New("createCard payload missing `name` field")
+	var name string
+	var columnID uuid.UUID
+
+	if err := msg.stringVar(&name, "name"); err != nil {
+		return err
 	}
-	colID, ok := data["column_id"]
-	if !ok {
-		return errors.New("createCard payload missing `column_id` field")
+	if err := msg.uuidVar(&columnID, "column_id"); err != nil {
+		return err
 	}
-	col, err := b.store.Columns.Get(uuid.MustParse(colID.(string)))
+	col, err := b.store.Columns.Get(columnID)
 	if err != nil {
 		return err
 	}
-	_, err = b.store.Cards.Create(name.(string), b.ID, col.ID)
+	_, err = b.store.Cards.Create(name, b.ID, col.ID)
 	return err
 }
 
 func (b *Board) deleteCard(msg message) error {
-	data := msg.Data.(map[string]any)
-	id, ok := data["id"]
-	if !ok {
-		return errors.New("deleteCard payload missing `id` field")
+	var id uuid.UUID
+	if err := msg.uuidVar(&id, "id"); err != nil {
+		return err
 	}
-	return b.store.Cards.Delete(uuid.MustParse(id.(string)))
+	return b.store.Cards.Delete(id)
 }
 
 func (b *Board) updateCard(msg message) error {
-	data := msg.Data.(map[string]any)
+	var id uuid.UUID
+	var name string
+	var columnID uuid.UUID
 
-	// get card
-	id, ok := data["id"]
-	if !ok {
-		return errors.New("updateCard payload missing `id` field")
+	if err := msg.uuidVar(&id, "id"); err != nil {
+		return err
 	}
-	card, err := b.store.Cards.Get(uuid.MustParse(id.(string)))
+
+	card, err := b.store.Cards.Get(id)
 	if err != nil {
 		return err
 	}
 
-	// if name set, update
-	name, ok := data["name"]
-	if ok {
-		card.Name = name.(string)
-	}
-
-	// if colum set, update
-	colID, ok := data["column_id"]
-	if ok {
-		col, err := b.store.Columns.Get(uuid.MustParse(colID.(string)))
-		if err != nil {
-			return err
+	// update card name if new name given
+	if err := msg.stringVar(&name, "name"); err == nil {
+		if name != card.Name {
+			card.Name = name
 		}
-		card.ColumnID = col.ID
+	}
+	// move to different column if new column_id given
+	if err := msg.uuidVar(&columnID, "column_id"); err == nil {
+		if columnID != card.ColumnID {
+			card.ColumnID = columnID
+		}
 	}
 	return b.store.Cards.Update(card)
 }
 
 func (b *Board) voteCard(msg message) error {
-	data := msg.Data.(map[string]any)
+	var id uuid.UUID
+	var vote int
 
-	// get card
-	id, ok := data["id"]
-	if !ok {
-		return errors.New("voteCard payload missing `id` field")
+	if err := msg.uuidVar(&id, "id"); err != nil {
+		return err
 	}
-	card, err := b.store.Cards.Get(uuid.MustParse(id.(string)))
+
+	card, err := b.store.Cards.Get(id)
 	if err != nil {
 		return err
 	}
 
-	// if vote set, update
-	vote, ok := data["vote"]
-	if ok {
-		v := int(vote.(float64))
-		if v != 1 && v != -1 {
-			return fmt.Errorf("vote value of %v is invalid", v)
-		}
-		card.Votes += v
-		return b.store.Cards.Update(card)
+	if err := msg.intVar(&vote, "vote"); err != nil {
+		return err
 	}
-	return nil
+	if vote != 1 && vote != -1 {
+		return fmt.Errorf("vote value of %v is invalid", vote)
+	}
+
+	card.Votes += vote
+	return b.store.Cards.Update(card)
 }

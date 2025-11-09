@@ -75,8 +75,8 @@ func main() {
 	// start WS server
 	manager := board.NewBoardManager(logger, s, strings.Split(c.initialColumns, ","))
 	ctx, cancel := context.WithCancel(context.Background())
-	go manager.Start(ctx)
 	defer cancel()
+	go manager.Start(ctx)
 
 	a := &app{
 		config:  c,

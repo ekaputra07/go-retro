@@ -1,6 +1,7 @@
 package board
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -45,14 +46,17 @@ func (b *Board) RemoveClient(client *Client) {
 func (b *Board) Start() {
 	b.logger.Info("board started", "board", b.ID)
 
+	// use context to stop timer from board process
+	ctx, cancelTimer := context.WithCancel(context.Background())
+
 	// start the timer
-	go b.timer.run()
+	go b.timer.run(ctx)
 
 	// listen to board events
-	go b.listen()
+	go b.listen(cancelTimer)
 }
 
-func (b *Board) listen() {
+func (b *Board) listen(cancelTimer context.CancelFunc) {
 	for {
 		select {
 		case client := <-b.join:
@@ -112,8 +116,7 @@ func (b *Board) listen() {
 		case <-b.stop:
 			// cleanup timer when board stopped
 			if b.timer != nil {
-				b.timer.cmd <- timerCmd{cmd: "destroy"}
-				b.timer = nil
+				cancelTimer()
 			}
 
 			// stop and unregister from ws server
