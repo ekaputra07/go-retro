@@ -24,6 +24,7 @@ go.work.sum
 # web files
 node_modules/
 dist/
+web/public/assets/
 
 # env file
 .env

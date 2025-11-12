@@ -1,4 +1,4 @@
-npm-deps:
+npm-install:
 	cd web/assets && npm install
 
 npm-build:
@@ -7,7 +7,7 @@ npm-build:
 go-deps:
 	go mod tidy
 
-setup: go-deps npm-deps
+setup: go-deps npm-install
 
 build:
 	go build -v -o dist/goretro-web ./cmd/web
@@ -19,3 +19,6 @@ run:
 	go run ./cmd/web -secret dev_Bve8zfg8RvNJHh8jxxEAVj8oe00bE2QY
 
 dev: npm-build run
+
+compose: npm-build
+	docker compose up

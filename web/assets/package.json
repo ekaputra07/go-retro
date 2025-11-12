@@ -5,8 +5,8 @@
     "tailwindcss": "^4.0.14"
   },
   "scripts": {
-    "build:js": "esbuild main.js --bundle --outdir=../public --minify --sourcemap",
-    "build:css": "npx @tailwindcss/cli -i ./main.css -o ../public/main.css --minify",
+    "build:js": "esbuild main.js --bundle --outdir=../public/assets --minify --sourcemap",
+    "build:css": "npx @tailwindcss/cli -i ./main.css -o ../public/assets/main.css --minify",
     "build": "npm run build:js && npm run build:css"
   },
   "dependencies": {
