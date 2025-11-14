@@ -72,7 +72,6 @@ func main() {
 	s := memory.NewMemoryStore()
 
 	// board manager
-	// start WS server
 	manager := board.NewBoardManager(logger, s, strings.Split(c.initialColumns, ","))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

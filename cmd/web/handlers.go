@@ -29,8 +29,12 @@ func init() {
 	gob.Register(uuid.UUID{})
 }
 
-func (a *app) health(w http.ResponseWriter, _ *http.Request) {
-	fmt.Fprint(w, "ok")
+func (a *app) health(w http.ResponseWriter, r *http.Request) {
+	if a.manager.Healthy() {
+		fmt.Fprint(w, "ok")
+	} else {
+		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+	}
 }
 
 func (a *app) generateBoardID(w http.ResponseWriter, r *http.Request) {

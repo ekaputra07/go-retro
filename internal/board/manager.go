@@ -16,11 +16,22 @@ type BoardManager struct {
 	boards              map[*Board]bool
 	registerChan        chan *Board
 	unregisterChan      chan *Board
+	stopped             bool
+}
+
+// Healthy returns whether the manager is still running
+func (m *BoardManager) Healthy() bool {
+	return !m.stopped
 }
 
 // Start starts the board manager goroutine
 func (m *BoardManager) Start(ctx context.Context) {
 	m.logger.Info("board-manager running...")
+
+	defer func(m *BoardManager) {
+		m.stopped = true
+	}(m)
+
 	for {
 		select {
 		case b := <-m.registerChan:
@@ -121,5 +132,6 @@ func NewBoardManager(logger *slog.Logger, store *store.Store, initialcolumns []s
 		boards:              make(map[*Board]bool),
 		registerChan:        make(chan *Board),
 		unregisterChan:      make(chan *Board),
+		stopped:             false,
 	}
 }

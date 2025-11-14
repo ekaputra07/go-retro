@@ -6,7 +6,7 @@ import (
 
 func (a *app) routes() http.Handler {
 	// static file server with cache middleware (max-age: 3600)
-	fileServer := a.staticCache(http.FileServer(http.Dir(a.config.staticDir)), 3600)
+	fileServer := staticCache(http.FileServer(http.Dir(a.config.staticDir)), 3600)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.generateBoardID)
@@ -16,5 +16,5 @@ func (a *app) routes() http.Handler {
 	mux.HandleFunc("/b/{board}/ws", a.websocket)
 
 	// apply common headers middleware to all routes
-	return a.commonHeaders(mux)
+	return a.recoverPanic(a.logRequest(commonHeaders(mux)))
 }
