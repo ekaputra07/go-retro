@@ -69,10 +69,10 @@ func main() {
 	session.Options = &sessions.Options{Secure: c.secure}
 
 	// database
-	s := memory.NewMemoryStore()
+	db := memory.NewMemoryStore()
 
 	// board manager
-	manager := board.NewBoardManager(logger, s, strings.Split(c.initialColumns, ","))
+	manager := board.NewBoardManager(logger, db, strings.Split(c.initialColumns, ","))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go manager.Start(ctx)
@@ -80,7 +80,7 @@ func main() {
 	a := &app{
 		config:  c,
 		logger:  logger,
-		store:   s,
+		store:   db,
 		manager: manager,
 		session: session,
 	}

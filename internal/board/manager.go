@@ -78,18 +78,7 @@ func (m *BoardManager) CreateBoard(id uuid.UUID) (*Board, error) {
 	}
 
 	// start and register new board process to the manager
-	board := &Board{
-		Board:   b,
-		manager: m,
-		logger:  m.logger,
-		store:   m.store,
-		clients: make(map[*Client]bool),
-		join:    make(chan *Client),
-		leave:   make(chan *Client),
-		message: make(chan message),
-		stop:    make(chan struct{}),
-		timer:   newTimer(m.logger),
-	}
+	board := newBoard(m, b)
 	return board, nil
 }
 

@@ -264,3 +264,19 @@ func (b *Board) handleTimerCommand(msg message) error {
 	b.timer.cmd <- cmd
 	return nil
 }
+
+// newBoard creates board instance
+func newBoard(manager *BoardManager, board *models.Board) *Board {
+	return &Board{
+		Board:   board,
+		manager: manager,
+		logger:  manager.logger,
+		store:   manager.store,
+		clients: make(map[*Client]bool),
+		join:    make(chan *Client),
+		leave:   make(chan *Client),
+		message: make(chan message),
+		stop:    make(chan struct{}),
+		timer:   newTimer(manager.logger),
+	}
+}
