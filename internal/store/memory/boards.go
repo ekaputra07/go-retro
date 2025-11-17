@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -12,34 +13,34 @@ type boards struct {
 	sync.Map
 }
 
-func (b *boards) List() ([]*models.Board, error) {
-	var boards []*models.Board
+func (b *boards) List(_ context.Context) ([]models.Board, error) {
+	var boards []models.Board
 	b.Range(func(_, v any) bool {
-		board := v.(*models.Board)
+		board := v.(models.Board)
 		boards = append(boards, board)
 		return true
 	})
 	return boards, nil
 }
 
-func (b *boards) Create(id uuid.UUID) (*models.Board, error) {
-	if _, ok := b.Load(id); ok {
-		return nil, fmt.Errorf("board with id=%s already exist", id)
+func (b *boards) Create(_ context.Context, board models.Board) error {
+	if _, ok := b.Load(board.ID); ok {
+		return fmt.Errorf("board with id=%s already exist", board.ID)
 	}
 
-	nb := models.NewBoard(id)
-	b.Store(nb.ID, nb)
-	return nb, nil
+	b.Store(board.ID, board)
+	return nil
 }
 
-func (b *boards) Get(id uuid.UUID) (*models.Board, error) {
+func (b *boards) Get(_ context.Context, id uuid.UUID) (*models.Board, error) {
 	if v, ok := b.Load(id); ok {
-		return v.(*models.Board), nil
+		board := v.(models.Board)
+		return &board, nil
 	}
 	return nil, fmt.Errorf("board with id=%s doesn't exist", id)
 }
 
-func (b *boards) Delete(id uuid.UUID) error {
+func (b *boards) Delete(_ context.Context, id uuid.UUID) error {
 	if _, loaded := b.LoadAndDelete(id); !loaded {
 		return fmt.Errorf("board with id=%s doesn't exist", id)
 	}

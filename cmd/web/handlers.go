@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/gob"
 	"errors"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 
 	"github.com/ekaputra07/go-retro/internal/board"
+	"github.com/ekaputra07/go-retro/internal/models"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -42,6 +44,8 @@ func (a *app) generateBoardID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) board(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
 	session, _ := a.session.Get(r, SESSION_NAME)
 	createUser := false
 
@@ -52,25 +56,26 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 		createUser = true
 	} else {
 		userID := session.Values["user_id"].(uuid.UUID)
-		if _, err := a.store.Users.Get(userID); err != nil {
+		if _, err := a.store.Users.Get(ctx, userID); err != nil {
 			createUser = true
 		}
 	}
 
 	if createUser {
 		avatarID := rand.Intn(AVATARS_COUNT-1) + 1
-		u, err := a.store.Users.Create(avatarID)
+		user := models.NewUser(avatarID)
+		err := a.store.Users.Create(ctx, user)
 		if err != nil {
 			a.serverError(w, r, err)
 			return
 		}
 
-		session.Values["user_id"] = u.ID
+		session.Values["user_id"] = user.ID
 		if err := session.Save(r, w); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
-		a.logger.Info("new user created", "id", u.ID)
+		a.logger.Info("new user created", "id", user.ID)
 	}
 
 	data := newTemplateData(a.config)
@@ -78,6 +83,8 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
 	// validate session (make sure user is present) before upgrading the connection
 	// TODO: Move this check to a middleware?
 	session, _ := a.session.Get(r, SESSION_NAME)
@@ -87,9 +94,9 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := a.store.Users.Get(userID.(uuid.UUID))
+	user, err := a.store.Users.Get(ctx, userID.(uuid.UUID))
 	if err != nil {
-		a.clientError(w, r, http.StatusUnauthorized, err)
+		a.clientError(w, r, http.StatusUnauthorized, fmt.Errorf("error a.store.Users.Get: %s", err.Error()))
 		return
 	}
 
@@ -100,8 +107,8 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	// update name if different
 	if user.Name != username {
 		user.Name = username
-		if err = a.store.Users.Update(user); err != nil {
-			a.serverError(w, r, err)
+		if err = a.store.Users.Update(ctx, *user); err != nil {
+			a.serverError(w, r, fmt.Errorf("error a.store.Users.Update: %s", err.Error()))
 			return
 		}
 	}
@@ -109,15 +116,15 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	// upgrade to websocket conn
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		a.serverError(w, r, err)
+		a.serverError(w, r, fmt.Errorf("error upgrader.Upgrade: %s", err.Error()))
 		return
 	}
 	defer conn.Close()
 
 	// start board process
-	b, err := a.manager.GetOrCreateBoardProcess(uuid.MustParse(boardID))
+	b, err := a.manager.GetOrCreateBoardProcess(ctx, uuid.MustParse(boardID))
 	if err != nil {
-		a.serverError(w, r, err)
+		a.serverError(w, r, fmt.Errorf("error a.manager.GetOrCreateBoardProcess: %s", err.Error()))
 		return
 	}
 

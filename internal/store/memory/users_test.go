@@ -1,33 +1,37 @@
 package memory
 
 import (
+	"context"
 	"testing"
 
+	"github.com/ekaputra07/go-retro/internal/models"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCreateUser(t *testing.T) {
-	u := &users{}
+	u := users{}
 
-	_, err := u.Create(1)
+	user := models.NewUser(1)
+	err := u.Create(context.Background(), user)
 	assert.NoError(t, err)
 }
 
 func TestGetUser(t *testing.T) {
 	u := &users{}
 
-	nu, _ := u.Create(1)
-
-	_, err := u.Get(nu.ID)
+	user := models.NewUser(1)
+	_ = u.Create(context.Background(), user)
+	_, err := u.Get(context.Background(), user.ID)
 	assert.NoError(t, err)
 }
 
 func TestUpdateUser(t *testing.T) {
 	u := &users{}
 
-	nu, _ := u.Create(1)
-	nu.Name = "New Name"
+	user := models.NewUser(1)
+	_ = u.Create(context.Background(), user)
+	user.Name = "New Name"
 
-	err := u.Update(nu)
+	err := u.Update(context.Background(), user)
 	assert.NoError(t, err)
 }

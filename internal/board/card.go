@@ -1,12 +1,14 @@
 package board
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/ekaputra07/go-retro/internal/models"
 	"github.com/google/uuid"
 )
 
-func (b *Board) createCard(msg message) error {
+func (b *Board) createCard(ctx context.Context, msg message) error {
 	var name string
 	var columnID uuid.UUID
 
@@ -16,23 +18,23 @@ func (b *Board) createCard(msg message) error {
 	if err := msg.uuidVar(&columnID, "column_id"); err != nil {
 		return err
 	}
-	col, err := b.store.Columns.Get(columnID)
+	col, err := b.store.Columns.Get(ctx, columnID)
 	if err != nil {
 		return err
 	}
-	_, err = b.store.Cards.Create(name, b.ID, col.ID)
-	return err
+	card := models.NewCard(name, b.ID, col.ID)
+	return b.store.Cards.Create(ctx, card)
 }
 
-func (b *Board) deleteCard(msg message) error {
+func (b *Board) deleteCard(ctx context.Context, msg message) error {
 	var id uuid.UUID
 	if err := msg.uuidVar(&id, "id"); err != nil {
 		return err
 	}
-	return b.store.Cards.Delete(id)
+	return b.store.Cards.Delete(ctx, id)
 }
 
-func (b *Board) updateCard(msg message) error {
+func (b *Board) updateCard(ctx context.Context, msg message) error {
 	var id uuid.UUID
 	var name string
 	var columnID uuid.UUID
@@ -41,7 +43,7 @@ func (b *Board) updateCard(msg message) error {
 		return err
 	}
 
-	card, err := b.store.Cards.Get(id)
+	card, err := b.store.Cards.Get(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -58,10 +60,10 @@ func (b *Board) updateCard(msg message) error {
 			card.ColumnID = columnID
 		}
 	}
-	return b.store.Cards.Update(card)
+	return b.store.Cards.Update(ctx, *card)
 }
 
-func (b *Board) voteCard(msg message) error {
+func (b *Board) voteCard(ctx context.Context, msg message) error {
 	var id uuid.UUID
 	var vote int
 
@@ -69,7 +71,7 @@ func (b *Board) voteCard(msg message) error {
 		return err
 	}
 
-	card, err := b.store.Cards.Get(id)
+	card, err := b.store.Cards.Get(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -82,5 +84,5 @@ func (b *Board) voteCard(msg message) error {
 	}
 
 	card.Votes += vote
-	return b.store.Cards.Update(card)
+	return b.store.Cards.Update(ctx, *card)
 }

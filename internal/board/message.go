@@ -10,6 +10,7 @@ import (
 type messageType string
 
 const (
+	messageTypePing              messageType = "ping"
 	messageTypeBoardUsers        messageType = "board.users"
 	messageTypeBoardStatus       messageType = "board.status"
 	messageTypeBoardNotification messageType = "board.notification"

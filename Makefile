@@ -19,3 +19,6 @@ run:
 	go run ./cmd/web -secret dev_Bve8zfg8RvNJHh8jxxEAVj8oe00bE2QY
 
 dev: npm-build run
+
+compose: npm-build
+	docker compose up

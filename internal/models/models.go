@@ -15,8 +15,8 @@ type User struct {
 	AvatarID int       `json:"avatar_id"`
 }
 
-func NewUser(avatarID int) *User {
-	return &User{
+func NewUser(avatarID int) User {
+	return User{
 		ID:       uuid.New(),
 		AvatarID: avatarID,
 	}
@@ -27,8 +27,8 @@ type Board struct {
 	CreatedAt int64     `json:"created_at"`
 }
 
-func NewBoard(id uuid.UUID) *Board {
-	return &Board{
+func NewBoard(id uuid.UUID) Board {
+	return Board{
 		ID:        id,
 		CreatedAt: time.Now().Unix(),
 	}
@@ -42,8 +42,8 @@ type Column struct {
 	CreatedAt int64     `json:"created_at"`
 }
 
-func NewColumn(name string, order int, boardID uuid.UUID) *Column {
-	return &Column{
+func NewColumn(name string, order int, boardID uuid.UUID) Column {
+	return Column{
 		ID:        uuid.New(),
 		Name:      name,
 		BoardID:   boardID,
@@ -61,8 +61,8 @@ type Card struct {
 	CreatedAt int64     `json:"created_at"`
 }
 
-func NewCard(name string, boardID, columnID uuid.UUID) *Card {
-	return &Card{
+func NewCard(name string, boardID, columnID uuid.UUID) Card {
+	return Card{
 		ID:        uuid.New(),
 		Name:      name,
 		BoardID:   boardID,

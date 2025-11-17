@@ -41,11 +41,25 @@ func (c *Client) read() {
 // write writes message to the socket
 func (c *Client) write() {
 	defer c.conn.Close()
-	for msg := range c.message {
-		c.logger.Info("client -->", "id", c.ID, "type", msg.Type)
-		if err := c.conn.WriteJSON(msg); err != nil {
-			c.logger.Error("client error writing -->", "id", c.ID, "err", err.Error())
-			continue
+
+	ticker := time.NewTicker(5 * time.Second)
+	defer func() {
+		ticker.Stop()
+	}()
+
+	for {
+		select {
+		case <-ticker.C:
+			if err := c.conn.WriteJSON(message{Type: messageTypePing}); err != nil {
+				c.logger.Error("client ping error -->", "id", c.ID, "err", err.Error())
+				return
+			}
+		case msg := <-c.message:
+			c.logger.Info("client -->", "id", c.ID, "type", msg.Type)
+			if err := c.conn.WriteJSON(msg); err != nil {
+				c.logger.Error("client message error -->", "id", c.ID, "err", err.Error())
+				return
+			}
 		}
 	}
 }

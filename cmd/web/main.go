@@ -10,8 +10,9 @@ import (
 	"strings"
 
 	"github.com/ekaputra07/go-retro/internal/board"
+	"github.com/ekaputra07/go-retro/internal/nats"
 	"github.com/ekaputra07/go-retro/internal/store"
-	"github.com/ekaputra07/go-retro/internal/store/memory"
+	nstore "github.com/ekaputra07/go-retro/internal/store/nats"
 	"github.com/gorilla/sessions"
 )
 
@@ -29,7 +30,7 @@ type config struct {
 type app struct {
 	config  config
 	logger  *slog.Logger
-	store   *store.Store
+	store   *store.GlobalStore
 	manager *board.BoardManager
 	session *sessions.CookieStore
 }
@@ -58,6 +59,8 @@ func parseConfig() config {
 }
 
 func main() {
+	ctx := context.Background()
+
 	// config
 	c := parseConfig()
 
@@ -68,11 +71,19 @@ func main() {
 	session := sessions.NewCookieStore([]byte(c.secret))
 	session.Options = &sessions.Options{Secure: c.secure}
 
+	// NATS
+	nts := nats.Setup(os.Getenv("NATS_URL"))
+	defer nts.Close()
+
 	// database
-	db := memory.NewMemoryStore()
+	db, err := nstore.NewGlobalStore(ctx, nts, "goretro-global")
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
 
 	// board manager
-	manager := board.NewBoardManager(logger, db, strings.Split(c.initialColumns, ","))
+	manager := board.NewBoardManager(logger, nts, db, strings.Split(c.initialColumns, ","))
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go manager.Start(ctx)
@@ -86,7 +97,7 @@ func main() {
 	}
 
 	logger.Info(fmt.Sprintf("Server running on :%d", c.port))
-	err := http.ListenAndServe(fmt.Sprintf(":%d", c.port), a.routes())
+	err = http.ListenAndServe(fmt.Sprintf(":%d", c.port), a.routes())
 	logger.Error(err.Error())
 	os.Exit(1)
 }

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -12,40 +13,39 @@ type cards struct {
 	sync.Map
 }
 
-func (c *cards) List(boardID uuid.UUID) ([]*models.Card, error) {
-	var cards []*models.Card
+func (c *cards) List(_ context.Context) ([]models.Card, error) {
+	var cards []models.Card
 	c.Range(func(_, v any) bool {
-		card := v.(*models.Card)
-		if card.BoardID == boardID {
-			cards = append(cards, card)
-		}
+		card := v.(models.Card)
+		cards = append(cards, card)
 		return true
 	})
 
 	return cards, nil
 }
 
-func (c *cards) Create(name string, boardID, columnID uuid.UUID) (*models.Card, error) {
-	nc := models.NewCard(name, boardID, columnID)
-	c.Store(nc.ID, nc)
-	return nc, nil
+func (c *cards) Create(_ context.Context, card models.Card) error {
+	c.Store(card.ID, card)
+	return nil
 }
 
-func (c *cards) Get(id uuid.UUID) (*models.Card, error) {
+func (c *cards) Get(_ context.Context, id uuid.UUID) (*models.Card, error) {
 	if v, ok := c.Load(id); ok {
-		return v.(*models.Card), nil
+		card := v.(models.Card)
+		return &card, nil
 	}
 	return nil, fmt.Errorf("card with id=%s doesn't exist", id)
 }
 
-func (c *cards) Update(card *models.Card) error {
-	if _, loaded := c.LoadOrStore(card.ID, card); !loaded {
+func (c *cards) Update(_ context.Context, card models.Card) error {
+	if _, ok := c.Load(card.ID); !ok {
 		return fmt.Errorf("card with id=%s doesn't exist", card.ID)
 	}
+	c.Store(card.ID, card)
 	return nil
 }
 
-func (c *cards) Delete(id uuid.UUID) error {
+func (c *cards) Delete(_ context.Context, id uuid.UUID) error {
 	if _, loaded := c.LoadAndDelete(id); !loaded {
 		return fmt.Errorf("card with id=%s doesn't exist", id)
 	}

@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -13,21 +14,22 @@ type users struct {
 	sync.Map
 }
 
-func (u *users) Create(avatarID int) (*models.User, error) {
-	nu := models.NewUser(avatarID)
-	u.Store(nu.ID, nu)
-	return nu, nil
+func (u *users) Create(_ context.Context, user models.User) error {
+	u.Store(user.ID, user)
+	return nil
 }
 
-func (u *users) Get(id uuid.UUID) (*models.User, error) {
-	user, ok := u.Load(id)
+func (u *users) Get(_ context.Context, id uuid.UUID) (*models.User, error) {
+	value, ok := u.Load(id)
 	if !ok {
 		return nil, fmt.Errorf("user id=%s does not exist", id)
 	}
-	return user.(*models.User), nil
+
+	user := value.(models.User)
+	return &user, nil
 }
 
-func (u *users) Update(user *models.User) error {
+func (u *users) Update(_ context.Context, user models.User) error {
 	if _, loaded := u.LoadOrStore(user.ID, user); !loaded {
 		return fmt.Errorf("user id=%s does not exist", user.ID)
 	}

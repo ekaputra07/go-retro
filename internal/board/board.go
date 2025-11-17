@@ -8,7 +8,9 @@ import (
 	"slices"
 
 	"github.com/ekaputra07/go-retro/internal/models"
+	"github.com/ekaputra07/go-retro/internal/nats"
 	"github.com/ekaputra07/go-retro/internal/store"
+	nstore "github.com/ekaputra07/go-retro/internal/store/nats"
 )
 
 // Board represents a single board instance that can be joined by clients
@@ -17,7 +19,7 @@ type Board struct {
 
 	manager *BoardManager
 	logger  *slog.Logger
-	store   *store.Store
+	store   *store.BoardStore
 	clients map[*Client]bool
 	timer   *timer
 
@@ -57,13 +59,15 @@ func (b *Board) Start() {
 }
 
 func (b *Board) listen(cancelTimer context.CancelFunc) {
+	ctx := context.Background()
+
 	for {
 		select {
 		case client := <-b.join:
 			b.addClient(client)
 
 			us := b.usersStateMessage()
-			bs := b.boardStateMessage()
+			bs := b.boardStateMessage(ctx)
 			no := b.notificationMessage(fmt.Sprintf("%s joined", client.User.Name))
 
 			// broadcast user state and notification to all except to newly joined client
@@ -83,12 +87,12 @@ func (b *Board) listen(cancelTimer context.CancelFunc) {
 			// broadcast board status and leave notification
 			msgs := []message{
 				b.usersStateMessage(),
-				b.boardStateMessage(),
+				b.boardStateMessage(ctx),
 			}
 			b.broadcast(msgs, nil)
 
 		case msg := <-b.message:
-			broadcast, err := b.update(msg)
+			broadcast, err := b.update(ctx, msg)
 			if err != nil {
 				b.logger.Error("updating board failed", "board", b.ID, "err", err.Error())
 				continue
@@ -96,7 +100,7 @@ func (b *Board) listen(cancelTimer context.CancelFunc) {
 
 			// broadcast board status if update is successful
 			if broadcast {
-				b.broadcast([]message{b.boardStateMessage()}, nil)
+				b.broadcast([]message{b.boardStateMessage(ctx)}, nil)
 			}
 
 		case t := <-b.timer.state:
@@ -136,32 +140,27 @@ func (b *Board) removeClient(client *Client) {
 	if _, ok := b.clients[client]; ok {
 		b.logger.Info("client leave board", "board", b.ID, "client", client.ID)
 		delete(b.clients, client)
-
-		// if no joined clients, stop board
-		if len(b.clients) == 0 {
-			close(b.stop)
-		}
 	}
 }
 
 // update the board and broadcast its status if desired
 // (bool, error) --> (broadcast?, error)
-func (b *Board) update(msg message) (bool, error) {
+func (b *Board) update(ctx context.Context, msg message) (bool, error) {
 	switch msg.Type {
 	case messageTypeColumnNew:
-		return true, b.createColumn(msg)
+		return true, b.createColumn(ctx, msg)
 	case messageTypeColumnDelete:
-		return true, b.deleteColumn(msg)
+		return true, b.deleteColumn(ctx, msg)
 	case messageTypeColumnUpdate:
-		return true, b.updateColumn(msg)
+		return true, b.updateColumn(ctx, msg)
 	case messageTypeCardNew:
-		return true, b.createCard(msg)
+		return true, b.createCard(ctx, msg)
 	case messageTypeCardDelete:
-		return true, b.deleteCard(msg)
+		return true, b.deleteCard(ctx, msg)
 	case messageTypeCardUpdate:
-		return true, b.updateCard(msg)
+		return true, b.updateCard(ctx, msg)
 	case messageTypeCardVote:
-		return true, b.voteCard(msg)
+		return true, b.voteCard(ctx, msg)
 	case messageTypeTimerCmd:
 		return false, b.handleTimerCommand(msg)
 	}
@@ -183,19 +182,17 @@ func (b *Board) usersStateMessage() message {
 }
 
 // boardStateMessage builds and returns the board status message
-func (b *Board) boardStateMessage() message {
+func (b *Board) boardStateMessage(ctx context.Context) message {
 	// list columns
-	columns, err := b.store.Columns.List(b.ID)
+	columns, err := b.store.Columns.List(ctx)
 	if err != nil {
 		b.logger.Error("failed fetching columns", "board", b.ID, "err", err.Error())
-		columns = []*models.Column{}
 	}
 
 	// list cards
-	cards, err := b.store.Cards.List(b.ID)
+	cards, err := b.store.Cards.List(ctx)
 	if err != nil {
 		b.logger.Error("failed fetching cards", "board", b.ID, "err", err.Error())
-		cards = []*models.Card{}
 	}
 	return message{
 		Type: messageTypeBoardStatus,
@@ -265,18 +262,22 @@ func (b *Board) handleTimerCommand(msg message) error {
 	return nil
 }
 
-// newBoard creates board instance
-func newBoard(manager *BoardManager, board *models.Board) *Board {
+// newBoard creates board instance (using in-memory store)
+func newBoard(ctx context.Context, nats *nats.NATS, manager *BoardManager, board *models.Board) (*Board, error) {
+	store, err := nstore.NewBoardStore(ctx, nats, fmt.Sprintf("goretro-board-%s", board.ID))
+	if err != nil {
+		return nil, err
+	}
 	return &Board{
 		Board:   board,
 		manager: manager,
 		logger:  manager.logger,
-		store:   manager.store,
+		store:   store,
 		clients: make(map[*Client]bool),
 		join:    make(chan *Client),
 		leave:   make(chan *Client),
 		message: make(chan message),
 		stop:    make(chan struct{}),
 		timer:   newTimer(manager.logger),
-	}
+	}, nil
 }
