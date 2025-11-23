@@ -1,4 +1,4 @@
-package memory
+package memstore
 
 import (
 	"context"
@@ -19,8 +19,8 @@ func TestCreateColumn(t *testing.T) {
 	ctx := context.Background()
 
 	c := &columns{}
-	c.Create(ctx, models.NewColumn("col1", 1, boardID))
-	c.Create(ctx, models.NewColumn("col2", 2, boardID))
+	c.Create(ctx, models.NewColumn("col1", boardID))
+	c.Create(ctx, models.NewColumn("col2", boardID))
 
 	columns, _ := c.List(ctx)
 	assert.Len(t, columns, 2)
@@ -30,7 +30,7 @@ func TestGetColumn(t *testing.T) {
 	ctx := context.Background()
 
 	c := &columns{}
-	col := models.NewColumn("col1", 1, boardID)
+	col := models.NewColumn("col1", boardID)
 	c.Create(ctx, col)
 
 	_, err := c.Get(ctx, uuid.New())
@@ -44,7 +44,7 @@ func TestUpdateColumn(t *testing.T) {
 	ctx := context.Background()
 
 	c := &columns{}
-	col := models.NewColumn("col1", 1, boardID)
+	col := models.NewColumn("col1", boardID)
 	err := c.Create(ctx, col)
 	assert.NoError(t, err)
 
@@ -60,9 +60,9 @@ func TestDeleteColumn(t *testing.T) {
 	ctx := context.Background()
 
 	c := &columns{}
-	col := models.NewColumn("col1", 1, boardID)
+	col := models.NewColumn("col1", boardID)
 	c.Create(ctx, col)
-	c.Create(ctx, models.NewColumn("col2", 2, boardID))
+	c.Create(ctx, models.NewColumn("col2", boardID))
 
 	err := c.Delete(ctx, col.ID)
 	assert.NoError(t, err)

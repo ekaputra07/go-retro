@@ -3,6 +3,7 @@ package board
 import (
 	"fmt"
 
+	"github.com/ekaputra07/go-retro/internal/models"
 	"github.com/google/uuid"
 )
 
@@ -10,7 +11,7 @@ import (
 type messageType string
 
 const (
-	messageTypePing              messageType = "ping"
+	messageTypeMe                messageType = "me"
 	messageTypeBoardUsers        messageType = "board.users"
 	messageTypeBoardStatus       messageType = "board.status"
 	messageTypeBoardNotification messageType = "board.notification"
@@ -29,9 +30,7 @@ const (
 type message struct {
 	Type messageType `json:"type"`
 	Data any         `json:"data"`
-
-	// from client: assigned when the message is received
-	fromClient *Client
+	User models.User `json:"user"`
 }
 
 // dataGet return value(any) from Data by given key

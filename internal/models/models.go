@@ -37,17 +37,15 @@ func NewBoard(id uuid.UUID) Board {
 type Column struct {
 	ID        uuid.UUID `json:"id"`
 	Name      string    `json:"name"`
-	Order     int       `json:"order"`
 	BoardID   uuid.UUID `json:"board_id"`
 	CreatedAt int64     `json:"created_at"`
 }
 
-func NewColumn(name string, order int, boardID uuid.UUID) Column {
+func NewColumn(name string, boardID uuid.UUID) Column {
 	return Column{
 		ID:        uuid.New(),
 		Name:      name,
 		BoardID:   boardID,
-		Order:     order,
 		CreatedAt: time.Now().Unix(),
 	}
 }

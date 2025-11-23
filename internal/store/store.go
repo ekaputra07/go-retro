@@ -21,7 +21,6 @@ type BoardRepo interface {
 }
 
 type ColumnRepo interface {
-	NextOrder() int
 	List(ctx context.Context) ([]models.Column, error)
 	Create(ctx context.Context, column models.Column) error
 	Get(ctx context.Context, id uuid.UUID) (*models.Column, error)

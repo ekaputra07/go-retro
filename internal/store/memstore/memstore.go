@@ -1,11 +1,8 @@
-package memory
+package memstore
 
 import (
 	"github.com/ekaputra07/go-retro/internal/store"
 )
-
-// NOTE: Memory store is unused in GoRetro V2
-// this package left here just for historical reason
 
 func NewGlobalStore() *store.GlobalStore {
 	return &store.GlobalStore{

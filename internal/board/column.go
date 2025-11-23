@@ -12,7 +12,7 @@ func (b *Board) createColumn(ctx context.Context, msg message) error {
 	if err := msg.stringVar(&name, "name"); err != nil {
 		return err
 	}
-	col := models.NewColumn(name, b.store.Columns.NextOrder(), b.ID)
+	col := models.NewColumn(name, b.ID)
 	return b.store.Columns.Create(ctx, col)
 }
 
