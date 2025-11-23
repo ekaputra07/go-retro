@@ -1,11 +1,10 @@
-package nats
+package natstore
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sync"
 
 	"github.com/ekaputra07/go-retro/internal/models"
 	"github.com/google/uuid"
@@ -14,21 +13,10 @@ import (
 
 type columns struct {
 	kv jetstream.KeyValue
-
-	mu        sync.Mutex
-	nextOrder int
 }
 
 func (u *columns) key(id uuid.UUID) string {
 	return fmt.Sprintf("columns.%s", id)
-}
-
-func (c *columns) NextOrder() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.nextOrder++
-	return c.nextOrder
 }
 
 func (c *columns) List(ctx context.Context) ([]models.Column, error) {

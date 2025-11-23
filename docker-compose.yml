@@ -13,8 +13,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - NATS_URL=nats://nats:4222
-      - GORETRO_SESSION_SECRET=dev_Bve8zfg8RvNJHh8jxxEAVj8oe00bE2QY
+      GORETRO_NATS_URL: nats://nats:4222
+      GORETRO_NATS_CREDS: none
+      GORETRO_SESSION_SECRET: dev_Bve8zfg8RvNJHh8jxxEAVj8oe00bE2QY
     entrypoint: go run ./cmd/web
     depends_on:
       - nats

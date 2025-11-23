@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"time"
+
+	"github.com/ekaputra07/go-retro/internal/models"
 )
 
 type timerStatus string
@@ -17,9 +19,9 @@ const (
 )
 
 type timerCmd struct {
-	cmd    string
-	value  string
-	client *Client
+	cmd   string
+	value string
+	user  models.User
 }
 
 func (tc timerCmd) is(cmd string) bool {
@@ -27,15 +29,15 @@ func (tc timerCmd) is(cmd string) bool {
 }
 
 type timer struct {
-	Status            timerStatus `json:"status"`
-	Display           string      `json:"display"`
-	duration          time.Duration
-	elapsed           time.Duration
-	cmd               chan timerCmd
-	state             chan *timer
-	statusMessage     string
-	lastCommandClient *Client
-	logger            *slog.Logger
+	Status        timerStatus `json:"status"`
+	Display       string      `json:"display"`
+	duration      time.Duration
+	elapsed       time.Duration
+	statusMessage string
+	lastCmdUser   models.User
+	logger        *slog.Logger
+	cmd           chan timerCmd
+	state         chan *timer
 }
 
 func (t *timer) updateDisplay() {
@@ -66,11 +68,11 @@ func (t *timer) run(ctx context.Context) {
 				t.state <- t
 			}
 			// reset status message after tick
-			t.lastCommandClient = nil
+			t.lastCmdUser = models.User{}
 			t.statusMessage = ""
 
 		case cmd := <-t.cmd:
-			t.lastCommandClient = cmd.client
+			t.lastCmdUser = cmd.user
 
 			if cmd.is("start") && (t.Status == timerStatusStopped || t.Status == timerStatusDone) {
 				d, err := time.ParseDuration(cmd.value)
@@ -82,13 +84,13 @@ func (t *timer) run(ctx context.Context) {
 				t.elapsed = 0
 				t.Status = timerStatusRunning
 				t.updateDisplay()
-				t.statusMessage = fmt.Sprintf("%s started the timer", cmd.client.User.Name)
+				t.statusMessage = fmt.Sprintf("%s started the timer", cmd.user.Name)
 				t.state <- t
 				t.logger.Info("timer running")
 
 			} else if cmd.is("start") && t.Status == timerStatusPaused {
 				t.Status = timerStatusRunning
-				t.statusMessage = fmt.Sprintf("%s resumed the timer", cmd.client.User.Name)
+				t.statusMessage = fmt.Sprintf("%s resumed the timer", cmd.user.Name)
 				t.state <- t
 				t.logger.Info("timer resumed")
 
@@ -96,12 +98,12 @@ func (t *timer) run(ctx context.Context) {
 				t.Status = timerStatusStopped
 				t.duration = 0
 				t.elapsed = 0
-				t.statusMessage = fmt.Sprintf("%s stoped the timer", cmd.client.User.Name)
+				t.statusMessage = fmt.Sprintf("%s stopped the timer", cmd.user.Name)
 				t.state <- t
 				t.logger.Info("timer stopped")
 
 			} else if cmd.is("pause") {
-				t.statusMessage = fmt.Sprintf("%s paused the timer", cmd.client.User.Name)
+				t.statusMessage = fmt.Sprintf("%s paused the timer", cmd.user.Name)
 				t.Status = timerStatusPaused
 				t.state <- t
 				t.logger.Info("timer paused")

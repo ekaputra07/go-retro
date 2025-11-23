@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"time"
 
 	"github.com/ekaputra07/go-retro/internal/board"
 	"github.com/ekaputra07/go-retro/internal/models"
@@ -49,9 +50,9 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 	session, _ := a.session.Get(r, SESSION_NAME)
 	createUser := false
 
-	// create new user if:
+	// 1. create new user if:
 	// - session is newdb
-	// - user_id in existing user no longer exists
+	// - user_id in session no longer exists
 	if session.IsNew {
 		createUser = true
 	} else {
@@ -76,6 +77,19 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		a.logger.Info("new user created", "id", user.ID)
+	}
+
+	// 2. check whether this boards alive somewhere (this node or other node)
+	// if not, start board process in current node
+	boardID := uuid.MustParse(r.PathValue("board"))
+	_, err := a.nats.Conn.Request(fmt.Sprintf("board.%s.status", boardID), nil, time.Second)
+	if err != nil {
+		a.logger.Info("board not running, starting...", "id", boardID)
+		err := a.manager.StartBoardProcess(ctx, boardID)
+		if err != nil {
+			a.serverError(w, r, fmt.Errorf("error a.manager.StartBoardProcess: %s", err.Error()))
+			return
+		}
 	}
 
 	data := newTemplateData(a.config)
@@ -121,19 +135,7 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	// start board process
-	b, err := a.manager.GetOrCreateBoardProcess(ctx, uuid.MustParse(boardID))
-	if err != nil {
-		a.serverError(w, r, fmt.Errorf("error a.manager.GetOrCreateBoardProcess: %s", err.Error()))
-		return
-	}
-
 	// create client and add to board
-	client := board.NewClient(conn, user, b)
-	b.AddClient(client)
-
-	defer client.Stop()
-	defer b.RemoveClient(client)
-
+	client := board.NewClient(conn, user, a.logger, a.nats, uuid.MustParse(boardID))
 	client.Start()
 }

@@ -1,4 +1,4 @@
-package memory
+package memstore
 
 import (
 	"context"
@@ -14,7 +14,7 @@ type cards struct {
 }
 
 func (c *cards) List(_ context.Context) ([]models.Card, error) {
-	var cards []models.Card
+	cards := []models.Card{}
 	c.Range(func(_, v any) bool {
 		card := v.(models.Card)
 		cards = append(cards, card)

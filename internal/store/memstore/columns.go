@@ -1,4 +1,4 @@
-package memory
+package memstore
 
 import (
 	"context"
@@ -11,17 +11,6 @@ import (
 
 type columns struct {
 	sync.Map
-
-	mu        sync.Mutex
-	nextOrder int
-}
-
-func (c *columns) NextOrder() int {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	c.nextOrder++
-	return c.nextOrder
 }
 
 func (c *columns) List(_ context.Context) ([]models.Column, error) {
