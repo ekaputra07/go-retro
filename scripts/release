@@ -1,0 +1,15 @@
+#!/bin/bash -eu
+
+cd $(dirname $0)/..
+
+repo=${GORETRO_REPO:-ekaputra07/goretro}
+tag=${GORETRO_TAG:-latest}
+
+echo "building..."
+docker build \
+    -t $repo:$tag \
+    -t $repo:latest .
+
+echo "pushing to docker-hub..."
+docker push $repo:$tag
+docker push $repo:latest

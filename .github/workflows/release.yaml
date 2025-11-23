@@ -1,0 +1,38 @@
+name: On Release (Test, build and push to DockerHub)
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.24'
+
+      # extra check to make sure everything is OK
+      - name: Build
+        run: ./scripts/build
+
+      - name: Test
+        run: ./scripts/test
+
+      - id: version
+        run: echo ::set-output name=version::${GITHUB_REF/refs\/tags\//}
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ var.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+      - name: Release
+        run: ./scripts/release
+        env:
+          GORETRO_TAG: ${{ steps.version.outputs.version }}
