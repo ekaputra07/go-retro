@@ -1,13 +1,16 @@
 package main
 
 import (
+	"context"
 	"encoding/gob"
 	"errors"
 	"fmt"
 	"math/rand"
 	"net/http"
+	"time"
 
 	"github.com/ekaputra07/go-retro/internal/board"
+	"github.com/ekaputra07/go-retro/internal/models"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
@@ -42,35 +45,51 @@ func (a *app) generateBoardID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) board(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
 	session, _ := a.session.Get(r, SESSION_NAME)
 	createUser := false
 
-	// create new user if:
+	// 1. create new user if:
 	// - session is newdb
-	// - user_id in existing user no longer exists
+	// - user_id in session no longer exists
 	if session.IsNew {
 		createUser = true
 	} else {
 		userID := session.Values["user_id"].(uuid.UUID)
-		if _, err := a.store.Users.Get(userID); err != nil {
+		if _, err := a.store.Users.Get(ctx, userID); err != nil {
 			createUser = true
 		}
 	}
 
 	if createUser {
 		avatarID := rand.Intn(AVATARS_COUNT-1) + 1
-		u, err := a.store.Users.Create(avatarID)
+		user := models.NewUser(avatarID)
+		err := a.store.Users.Create(ctx, user)
 		if err != nil {
 			a.serverError(w, r, err)
 			return
 		}
 
-		session.Values["user_id"] = u.ID
+		session.Values["user_id"] = user.ID
 		if err := session.Save(r, w); err != nil {
 			a.serverError(w, r, err)
 			return
 		}
-		a.logger.Info("new user created", "id", u.ID)
+		a.logger.Info("new user created", "id", user.ID)
+	}
+
+	// 2. check whether this boards alive somewhere (this node or other node)
+	// if not, start board process in current node
+	boardID := uuid.MustParse(r.PathValue("board"))
+	_, err := a.nats.Conn.Request(fmt.Sprintf("board.%s.status", boardID), nil, time.Second)
+	if err != nil {
+		a.logger.Info("board not running, starting...", "id", boardID)
+		err := a.manager.StartBoardProcess(ctx, boardID)
+		if err != nil {
+			a.serverError(w, r, fmt.Errorf("error a.manager.StartBoardProcess: %s", err.Error()))
+			return
+		}
 	}
 
 	data := newTemplateData(a.config)
@@ -78,6 +97,8 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
+	ctx := context.Background()
+
 	// validate session (make sure user is present) before upgrading the connection
 	// TODO: Move this check to a middleware?
 	session, _ := a.session.Get(r, SESSION_NAME)
@@ -87,9 +108,9 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := a.store.Users.Get(userID.(uuid.UUID))
+	user, err := a.store.Users.Get(ctx, userID.(uuid.UUID))
 	if err != nil {
-		a.clientError(w, r, http.StatusUnauthorized, err)
+		a.clientError(w, r, http.StatusUnauthorized, fmt.Errorf("error a.store.Users.Get: %s", err.Error()))
 		return
 	}
 
@@ -100,8 +121,8 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	// update name if different
 	if user.Name != username {
 		user.Name = username
-		if err = a.store.Users.Update(user); err != nil {
-			a.serverError(w, r, err)
+		if err = a.store.Users.Update(ctx, *user); err != nil {
+			a.serverError(w, r, fmt.Errorf("error a.store.Users.Update: %s", err.Error()))
 			return
 		}
 	}
@@ -109,24 +130,12 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	// upgrade to websocket conn
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		a.serverError(w, r, err)
+		a.serverError(w, r, fmt.Errorf("error upgrader.Upgrade: %s", err.Error()))
 		return
 	}
 	defer conn.Close()
 
-	// start board process
-	b, err := a.manager.GetOrCreateBoardProcess(uuid.MustParse(boardID))
-	if err != nil {
-		a.serverError(w, r, err)
-		return
-	}
-
 	// create client and add to board
-	client := board.NewClient(conn, user, b)
-	b.AddClient(client)
-
-	defer client.Stop()
-	defer b.RemoveClient(client)
-
+	client := board.NewClient(conn, user, a.logger, a.nats, uuid.MustParse(boardID))
 	client.Start()
 }

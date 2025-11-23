@@ -3,6 +3,7 @@ import { EmojiButton } from '@joeattardi/emoji-button';
 export default () => ({
     socket: null,
     username: null,
+    currentUser: null,
     openUsernameModal: false,
     openCardModal: false,
     openColumnModal: false,
@@ -58,6 +59,7 @@ export default () => ({
         var app = this;
         this.socket.addEventListener("open", (_event) => {
             console.log(`Connected to WebSocket as ${username}...`);
+            this.socket.send(JSON.stringify({ type: 'me'}));
         });
 
         this.socket.addEventListener("message", (event) => {
@@ -76,6 +78,10 @@ export default () => ({
     onWsEvent(event) {
         const e = JSON.parse(event.data);
         switch (e.type) {
+            case 'me':
+                this.currentUser = e.user
+                break
+
             case 'board.users':
                 const sortedClients = e.data.sort((a, b) => a.joined_at - b.joined_at);
                 const uniqueClients = [...new Set(sortedClients.map(c => c.user.id))];
@@ -84,8 +90,7 @@ export default () => ({
                     if (!acc[c.user.id]) acc[c.user.id] = 0;
                     acc[c.user.id]++;
                     return acc;
-                }
-                    , {});
+                }, {});
                 this.clients = uniqueClients.map(id => sortedClients.find(c => c.user.id === id));
 
                 if (this.standup.show) {
@@ -94,12 +99,17 @@ export default () => ({
                 break;
 
             case 'board.status':
-                this.columns = e.data.columns.sort((a, b) => a.order - b.order);
+                this.columns = (e.data.columns || []).sort((a, b) => a.created_at - b.created_at);
                 this.cards = (e.data.cards || []).sort((a, b) => a.created_at - b.created_at)
                 break;
 
             case 'board.notification':
-                this.dispatchCustomEvents('flash', e.data);
+                // don't show notification to those who triggers it
+                if(this.currentUser && e.user) {
+                    if(this.currentUser.id != e.user.id) {
+                        this.dispatchCustomEvents('flash', e.data);
+                    }
+                }
                 break;
 
             case 'timer.state':

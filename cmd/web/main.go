@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -10,51 +9,19 @@ import (
 	"strings"
 
 	"github.com/ekaputra07/go-retro/internal/board"
+	"github.com/ekaputra07/go-retro/internal/natsutil"
 	"github.com/ekaputra07/go-retro/internal/store"
-	"github.com/ekaputra07/go-retro/internal/store/memory"
+	"github.com/ekaputra07/go-retro/internal/store/memstore"
 	"github.com/gorilla/sessions"
 )
-
-// config stores all configurable values
-type config struct {
-	port           int
-	staticDir      string
-	secret         string
-	initialColumns string
-	secure         bool
-	enableTimer    bool
-	enableStandup  bool
-}
 
 type app struct {
 	config  config
 	logger  *slog.Logger
-	store   *store.Store
+	store   *store.GlobalStore
 	manager *board.BoardManager
 	session *sessions.CookieStore
-}
-
-func parseConfig() config {
-	conf := config{}
-	flag.IntVar(&conf.port, "port", 8080, "Port to listen")
-	flag.StringVar(&conf.staticDir, "staticDir", "./web/public", "Directory of static files")
-	flag.StringVar(&conf.secret, "secret", os.Getenv("GORETRO_SESSION_SECRET"), "Session secret")
-	flag.StringVar(&conf.initialColumns, "initialColumns", "Good,Bad,Questions,Emoji", "Initial board columns")
-	flag.BoolVar(&conf.secure, "secure", false, "Secure cookie by default")
-	flag.BoolVar(&conf.enableTimer, "timer", true, "Enable timer feature")
-	flag.BoolVar(&conf.enableStandup, "standup", true, "Enable standup feature")
-	flag.Parse()
-
-	// make sure secret is not empty
-	if conf.secret == "" {
-		fmt.Println(
-			"Secret is missing!",
-			"Set secret via environment variable `GORETRO_SESSION_SECRET` (recommended)",
-			"or via `-secret` flag.",
-		)
-		os.Exit(1)
-	}
-	return conf
+	nats    *natsutil.NATS
 }
 
 func main() {
@@ -68,21 +35,33 @@ func main() {
 	session := sessions.NewCookieStore([]byte(c.secret))
 	session.Options = &sessions.Options{Secure: c.secure}
 
+	// NATS
+	natscon := natsutil.Connect(c.natsUrl, c.natsCreds)
+	defer natscon.Close()
+
 	// database
-	s := memory.NewMemoryStore()
+	ctx := context.Background()
+	// memstore.NewGlobalStore()
+	// db, err := natstore.NewGlobalStore(ctx, natscon, "goretro-global")
+	// if err != nil {
+	// 	logger.Error(err.Error())
+	// 	os.Exit(1)
+	// }
+	db := memstore.NewGlobalStore()
 
 	// board manager
-	manager := board.NewBoardManager(logger, s, strings.Split(c.initialColumns, ","))
-	ctx, cancel := context.WithCancel(context.Background())
+	manager := board.NewBoardManager(logger, natscon, db, strings.Split(c.initialColumns, ","))
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go manager.Start(ctx)
 
 	a := &app{
 		config:  c,
 		logger:  logger,
-		store:   s,
+		store:   db,
 		manager: manager,
 		session: session,
+		nats:    natscon,
 	}
 
 	logger.Info(fmt.Sprintf("Server running on :%d", c.port))
