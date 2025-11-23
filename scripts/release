@@ -8,7 +8,8 @@ tag=${GORETRO_TAG:-latest}
 echo "building..."
 docker build \
     -t $repo:$tag \
-    -t $repo:latest .
+    -t $repo:latest . \
+    --platform linux/amd64
 
 echo "pushing to docker-hub..."
 docker push $repo:$tag
