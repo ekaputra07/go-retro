@@ -10,7 +10,7 @@ import (
 	"github.com/ekaputra07/go-retro/internal/models"
 	"github.com/ekaputra07/go-retro/internal/natsutil"
 	"github.com/ekaputra07/go-retro/internal/store"
-	"github.com/ekaputra07/go-retro/internal/store/memstore"
+	"github.com/ekaputra07/go-retro/internal/store/natstore"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 )
@@ -33,6 +33,10 @@ func inboundMessageTopic(boardID uuid.UUID) string {
 
 func broadcastMessageTopic(boardID uuid.UUID) string {
 	return fmt.Sprintf("board.%s.msg-all", boardID)
+}
+
+func boardKVBucket(boardID uuid.UUID) string {
+	return fmt.Sprintf("goretro-board-%s", boardID)
 }
 
 // Board represents a single board instance that can be joined by clients
@@ -274,13 +278,13 @@ func (b *Board) handleTimerCommand(msg message) error {
 }
 
 // newBoard creates board instance (using in-memory store)
-func newBoard(_ context.Context, manager *BoardManager, board *models.Board) (*Board, error) {
+func newBoard(ctx context.Context, manager *BoardManager, board *models.Board) (*Board, error) {
 	// create new storage to store board's data
-	// store, err := natstore.NewBoardStore(ctx, manager.nats, fmt.Sprintf("goretro-board-%s", board.ID))
-	// if err != nil {
-	// 	return nil, err
-	// }
-	store := memstore.NewBoardStore()
+	store, err := natstore.NewBoardStore(ctx, manager.nats, boardKVBucket(board.ID))
+	if err != nil {
+		return nil, err
+	}
+	// store := memstore.NewBoardStore()
 
 	return &Board{
 		Board:     board,

@@ -11,7 +11,7 @@ import (
 	"github.com/ekaputra07/go-retro/internal/board"
 	"github.com/ekaputra07/go-retro/internal/natsutil"
 	"github.com/ekaputra07/go-retro/internal/store"
-	"github.com/ekaputra07/go-retro/internal/store/memstore"
+	"github.com/ekaputra07/go-retro/internal/store/natstore"
 	"github.com/gorilla/sessions"
 )
 
@@ -41,13 +41,12 @@ func main() {
 
 	// database
 	ctx := context.Background()
-	// memstore.NewGlobalStore()
-	// db, err := natstore.NewGlobalStore(ctx, natscon, "goretro-global")
-	// if err != nil {
-	// 	logger.Error(err.Error())
-	// 	os.Exit(1)
-	// }
-	db := memstore.NewGlobalStore()
+	db, err := natstore.NewGlobalStore(ctx, natscon, "goretro-global")
+	if err != nil {
+		logger.Error(err.Error())
+		os.Exit(1)
+	}
+	// db := memstore.NewGlobalStore()
 
 	// board manager
 	manager := board.NewBoardManager(logger, natscon, db, strings.Split(c.initialColumns, ","))
@@ -65,7 +64,7 @@ func main() {
 	}
 
 	logger.Info(fmt.Sprintf("%s (%s) running on :%d", appName, appVersion, c.port))
-	err := http.ListenAndServe(fmt.Sprintf(":%d", c.port), a.routes())
+	err = http.ListenAndServe(fmt.Sprintf(":%d", c.port), a.routes())
 	logger.Error(err.Error())
 	os.Exit(1)
 }

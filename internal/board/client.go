@@ -87,12 +87,15 @@ func (c *Client) read() {
 func (c *Client) write(ctx context.Context) {
 	// subscribe for messages
 	messageSub, _ := c.nats.Conn.ChanSubscribe(broadcastMessageTopic(c.BoardID), c.messageCh)
+	kv, _ := c.nats.JS.KeyValue(ctx, boardKVBucket(c.BoardID))
+	w, _ := kv.WatchAll(ctx)
 
 	// pinger
 	ticker := time.NewTicker(pingPeriod)
 
 	defer func() {
 		messageSub.Unsubscribe()
+		w.Stop()
 		close(c.messageCh)
 		ticker.Stop()
 		c.conn.Close()
@@ -100,6 +103,10 @@ func (c *Client) write(ctx context.Context) {
 
 	for {
 		select {
+		case kve := <-w.Updates():
+			if kve != nil {
+				c.logger.Info("UPDATE", "op", kve.Operation(), "key", kve.Key(), "value", kve.Value())
+			}
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -152,6 +159,6 @@ func NewClient(conn *websocket.Conn,
 		logger:    logger,
 		conn:      conn,
 		nats:      nats_,
-		messageCh: make(chan *nats.Msg, 1),
+		messageCh: make(chan *nats.Msg, 256),
 	}
 }
