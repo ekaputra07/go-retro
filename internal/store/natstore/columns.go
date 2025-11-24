@@ -35,6 +35,9 @@ func (c *columns) List(ctx context.Context, boardID uuid.UUID) ([]models.Column,
 			continue // skip
 		}
 		columns = append(columns, c)
+
+		// stop on the first column (we don't need to pull all)
+		lister.Stop()
 	}
 	return columns, nil
 }

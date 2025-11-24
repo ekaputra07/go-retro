@@ -7,7 +7,7 @@ app = 'go-retro'
 primary_region = 'sin'
 
 [build]
-  image = "ekaputra07/goretro:latest"
+image = "ekaputra07/goretro:latest"
 
 [experimental]
   cmd = ["-secure", "true"]
