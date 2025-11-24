@@ -14,7 +14,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-const TTL = 6 * time.Hour // only available for 6hrs since creation
+const TTL = 24 * time.Hour // only available for 24hr since creation
 
 func getKV(ctx context.Context, nats *natsutil.NATS, namespace string) (jetstream.KeyValue, error) {
 	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
@@ -23,27 +23,18 @@ func getKV(ctx context.Context, nats *natsutil.NATS, namespace string) (jetstrea
 	return nats.JS.CreateOrUpdateKeyValue(timeoutCtx, jetstream.KeyValueConfig{
 		Bucket:   namespace,
 		TTL:      TTL,
-		MaxBytes: 1024 * 1000, // 1Mb
+		MaxBytes: 1024 * 1000 * 100, // 100Mb
 	})
 }
 
-func NewGlobalStore(ctx context.Context, nats *natsutil.NATS, namespace string) (*store.GlobalStore, error) {
+func NewStore(ctx context.Context, nats *natsutil.NATS, namespace string) (*store.Store, error) {
 	kv, err := getKV(ctx, nats, namespace)
 	if err != nil {
 		return nil, err
 	}
-	return &store.GlobalStore{
-		Users:  &users{kv: kv},
-		Boards: &boards{kv: kv},
-	}, nil
-}
-
-func NewBoardStore(ctx context.Context, nats *natsutil.NATS, namespace string) (*store.BoardStore, error) {
-	kv, err := getKV(ctx, nats, namespace)
-	if err != nil {
-		return nil, err
-	}
-	return &store.BoardStore{
+	return &store.Store{
+		Users:   &users{kv: kv},
+		Boards:  &boards{kv: kv},
 		Columns: &columns{kv: kv},
 		Cards:   &cards{kv: kv},
 	}, nil

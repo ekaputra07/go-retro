@@ -10,7 +10,6 @@ import (
 	"github.com/ekaputra07/go-retro/internal/models"
 	"github.com/ekaputra07/go-retro/internal/natsutil"
 	"github.com/ekaputra07/go-retro/internal/store"
-	"github.com/ekaputra07/go-retro/internal/store/natstore"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
 )
@@ -35,17 +34,13 @@ func broadcastMessageTopic(boardID uuid.UUID) string {
 	return fmt.Sprintf("board.%s.msg-all", boardID)
 }
 
-func boardKVBucket(boardID uuid.UUID) string {
-	return fmt.Sprintf("goretro-board-%s", boardID)
-}
-
 // Board represents a single board instance that can be joined by clients
 type Board struct {
 	*models.Board
 
 	manager *BoardManager
 	logger  *slog.Logger
-	store   *store.BoardStore
+	store   *store.Store
 	nats    *natsutil.NATS
 	timer   *timer
 	clients map[uuid.UUID]Client
@@ -106,7 +101,6 @@ func (b *Board) listen(ctx context.Context, cancel context.CancelFunc) {
 				user := *c.User
 				b.addClient(c)
 				b.broadcast(b.usersStateMessage(user))
-				b.broadcast(b.boardStateMessage(ctx, user))
 
 				statuses := []timerStatus{timerStatusRunning, timerStatusPaused}
 				if slices.Contains(statuses, b.timer.Status) {
@@ -124,14 +118,9 @@ func (b *Board) listen(ctx context.Context, cancel context.CancelFunc) {
 		case msg := <-b.messageCh:
 			var m message
 			if err := json.Unmarshal(msg.Data, &m); err == nil {
-				broadcast, err := b.update(ctx, m)
-				if err != nil {
+				if err := b.update(ctx, m); err != nil {
 					b.logger.Error("updating board failed", "board", b.ID, "err", err.Error())
 					continue
-				}
-
-				if broadcast {
-					b.broadcast(b.boardStateMessage(ctx, m.User))
 				}
 			}
 
@@ -170,26 +159,26 @@ func (b *Board) removeClient(client Client) {
 
 // update the board and broadcast its status if desired
 // (bool, error) --> (broadcast?, error)
-func (b *Board) update(ctx context.Context, msg message) (bool, error) {
+func (b *Board) update(ctx context.Context, msg message) error {
 	switch msg.Type {
 	case messageTypeColumnNew:
-		return true, b.createColumn(ctx, msg)
+		return b.createColumn(ctx, msg)
 	case messageTypeColumnDelete:
-		return true, b.deleteColumn(ctx, msg)
+		return b.deleteColumn(ctx, msg)
 	case messageTypeColumnUpdate:
-		return true, b.updateColumn(ctx, msg)
+		return b.updateColumn(ctx, msg)
 	case messageTypeCardNew:
-		return true, b.createCard(ctx, msg)
+		return b.createCard(ctx, msg)
 	case messageTypeCardDelete:
-		return true, b.deleteCard(ctx, msg)
+		return b.deleteCard(ctx, msg)
 	case messageTypeCardUpdate:
-		return true, b.updateCard(ctx, msg)
+		return b.updateCard(ctx, msg)
 	case messageTypeCardVote:
-		return true, b.voteCard(ctx, msg)
+		return b.voteCard(ctx, msg)
 	case messageTypeTimerCmd:
-		return false, b.handleTimerCommand(msg)
+		return b.handleTimerCommand(msg)
 	}
-	return false, nil
+	return nil
 }
 
 // usersStateMessage builds and returns the users state message
@@ -203,31 +192,6 @@ func (b *Board) usersStateMessage(user models.User) message {
 	return message{
 		Type: messageTypeBoardUsers,
 		Data: clients,
-		User: user,
-	}
-}
-
-// boardStateMessage builds and returns the board status message
-func (b *Board) boardStateMessage(ctx context.Context, user models.User) message {
-	// list columns
-	columns, err := b.store.Columns.List(ctx)
-	if err != nil {
-		b.logger.Error("failed fetching columns", "board", b.ID, "err", err.Error())
-	}
-
-	// list cards
-	cards, err := b.store.Cards.List(ctx)
-	if err != nil {
-		b.logger.Error("failed fetching cards", "board", b.ID, "err", err.Error())
-	}
-
-	return message{
-		Type: messageTypeBoardStatus,
-		Data: map[string]any{
-			"id":      b.ID,
-			"columns": columns,
-			"cards":   cards,
-		},
 		User: user,
 	}
 }
@@ -277,27 +241,20 @@ func (b *Board) handleTimerCommand(msg message) error {
 	return nil
 }
 
-// newBoard creates board instance (using in-memory store)
-func newBoard(ctx context.Context, manager *BoardManager, board *models.Board) (*Board, error) {
-	// create new storage to store board's data
-	store, err := natstore.NewBoardStore(ctx, manager.nats, boardKVBucket(board.ID))
-	if err != nil {
-		return nil, err
-	}
-	// store := memstore.NewBoardStore()
-
+// newBoard creates board instance
+func newBoard(manager *BoardManager, board *models.Board) (*Board, error) {
 	return &Board{
 		Board:     board,
 		manager:   manager,
 		logger:    manager.logger,
-		store:     store,
+		store:     manager.store,
 		nats:      manager.nats,
 		clients:   make(map[uuid.UUID]Client),
 		timer:     newTimer(manager.logger),
 		stop:      make(chan bool),
-		joinCh:    make(chan *nats.Msg, 1),
-		leaveCh:   make(chan *nats.Msg, 1),
-		messageCh: make(chan *nats.Msg, 1),
-		statusCh:  make(chan *nats.Msg, 1),
+		joinCh:    make(chan *nats.Msg, 256),
+		leaveCh:   make(chan *nats.Msg, 256),
+		messageCh: make(chan *nats.Msg, 256),
+		statusCh:  make(chan *nats.Msg, 256),
 	}, nil
 }

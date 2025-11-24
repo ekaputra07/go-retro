@@ -1,11 +1,57 @@
 package board
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/ekaputra07/go-retro/internal/models"
 	"github.com/google/uuid"
+	"github.com/nats-io/nats.go/jetstream"
 )
+
+// stream represent a single item from a stream of changes
+type stream struct {
+	Type   string `json:"type"`
+	ID     string `json:"id"`
+	Op     string `json:"op"`
+	Object any    `json:"obj"`
+}
+
+func newStreamFromKVE(kve jetstream.KeyValueEntry) (*stream, error) {
+	// key format: boards.<id>.<type>.<id>
+	tokens := strings.Split(kve.Key(), ".")
+	s := stream{Type: tokens[2], ID: tokens[3]}
+
+	switch kve.Operation() {
+	case jetstream.KeyValuePut:
+		s.Op = "put"
+	case jetstream.KeyValueDelete:
+		s.Op = "del"
+		return &s, nil // return without Object
+	case jetstream.KeyValuePurge:
+		s.Op = "del" // return without Object
+		return &s, nil
+	}
+
+	switch s.Type {
+	case "columns":
+		var c models.Column
+		if err := json.Unmarshal(kve.Value(), &c); err != nil {
+			return nil, err
+		}
+		s.Object = c
+	case "cards":
+		var c models.Card
+		if err := json.Unmarshal(kve.Value(), &c); err != nil {
+			return nil, err
+		}
+		s.Object = c
+	default:
+		return nil, fmt.Errorf("stream type %s not supported", s.Type)
+	}
+	return &s, nil
+}
 
 // messageType represents the type of message that can be sent to and from the client
 type messageType string
@@ -13,7 +59,6 @@ type messageType string
 const (
 	messageTypeMe                messageType = "me"
 	messageTypeBoardUsers        messageType = "board.users"
-	messageTypeBoardStatus       messageType = "board.status"
 	messageTypeBoardNotification messageType = "board.notification"
 	messageTypeColumnNew         messageType = "column.new"
 	messageTypeColumnUpdate      messageType = "column.update"

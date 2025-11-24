@@ -59,7 +59,7 @@ export default () => ({
         var app = this;
         this.socket.addEventListener("open", (_event) => {
             console.log(`Connected to WebSocket as ${username}...`);
-            this.socket.send(JSON.stringify({ type: 'me'}));
+            this.socket.send(JSON.stringify({ type: 'me' }));
         });
 
         this.socket.addEventListener("message", (event) => {
@@ -79,8 +79,16 @@ export default () => ({
         const e = JSON.parse(event.data);
         switch (e.type) {
             case 'me':
-                this.currentUser = e.user
+                this.currentUser = e.user;
                 break
+
+            case 'columns':
+                this.applyOperation(this.columns, e);
+                break;
+
+            case 'cards':
+                this.applyOperation(this.cards, e);
+                break;
 
             case 'board.users':
                 const sortedClients = e.data.sort((a, b) => a.joined_at - b.joined_at);
@@ -98,15 +106,10 @@ export default () => ({
                 }
                 break;
 
-            case 'board.status':
-                this.columns = (e.data.columns || []).sort((a, b) => a.created_at - b.created_at);
-                this.cards = (e.data.cards || []).sort((a, b) => a.created_at - b.created_at)
-                break;
-
             case 'board.notification':
                 // don't show notification to those who triggers it
-                if(this.currentUser && e.user) {
-                    if(this.currentUser.id != e.user.id) {
+                if (this.currentUser && e.user) {
+                    if (this.currentUser.id != e.user.id) {
                         this.dispatchCustomEvents('flash', e.data);
                     }
                 }
@@ -125,6 +128,20 @@ export default () => ({
 
             default:
                 break;
+        }
+    },
+    applyOperation(list, change) {
+        var idx = list.findIndex(c => c.id == change.id)
+        if (idx >= 0) {
+            if (change.op == "put") {
+                list[idx] = change.obj;
+            } else if (change.op == "del") {
+                list.splice(idx, 1);
+            }
+            list = list.sort((a, b) => a.created_at - b.created_at);
+        } else if (idx == -1 && change.op == "put") {
+            list.push(change.obj);
+            list = list.sort((a, b) => a.created_at - b.created_at);
         }
     },
     askUsername() {

@@ -18,7 +18,7 @@ import (
 type app struct {
 	config  config
 	logger  *slog.Logger
-	store   *store.GlobalStore
+	store   *store.Store
 	manager *board.BoardManager
 	session *sessions.CookieStore
 	nats    *natsutil.NATS
@@ -41,12 +41,11 @@ func main() {
 
 	// database
 	ctx := context.Background()
-	db, err := natstore.NewGlobalStore(ctx, natscon, "goretro-global")
+	db, err := natstore.NewStore(ctx, natscon, "goretro")
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
-	// db := memstore.NewGlobalStore()
 
 	// board manager
 	manager := board.NewBoardManager(logger, natscon, db, strings.Split(c.initialColumns, ","))

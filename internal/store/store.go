@@ -21,29 +21,25 @@ type BoardRepo interface {
 }
 
 type ColumnRepo interface {
-	List(ctx context.Context) ([]models.Column, error)
+	List(ctx context.Context, boardID uuid.UUID) ([]models.Column, error)
 	Create(ctx context.Context, column models.Column) error
-	Get(ctx context.Context, id uuid.UUID) (*models.Column, error)
+	Get(ctx context.Context, boardID uuid.UUID, id uuid.UUID) (*models.Column, error)
 	Update(ctx context.Context, column models.Column) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, boardID uuid.UUID, id uuid.UUID) error
 }
 
 type CardRepo interface {
-	List(ctx context.Context) ([]models.Card, error)
+	List(ctx context.Context, boardID uuid.UUID) ([]models.Card, error)
 	Create(ctx context.Context, card models.Card) error
-	Get(ctx context.Context, id uuid.UUID) (*models.Card, error)
+	Get(ctx context.Context, boardID uuid.UUID, id uuid.UUID) (*models.Card, error)
 	Update(ctx context.Context, card models.Card) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, boardID uuid.UUID, id uuid.UUID) error
 }
 
-// GlobalStore stores globally available records e.g Users and Boards
-type GlobalStore struct {
-	Users  UserRepo
-	Boards BoardRepo
-}
-
-// BoardStore stores board scopped records e.g Columns and Cards
-type BoardStore struct {
+// Store stores globally available records e.g Users and Boards
+type Store struct {
+	Users   UserRepo
+	Boards  BoardRepo
 	Columns ColumnRepo
 	Cards   CardRepo
 }
