@@ -2,6 +2,7 @@ package board
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/ekaputra07/go-retro/internal/models"
@@ -73,7 +74,7 @@ func (m *BoardManager) CreateBoard(ctx context.Context, id uuid.UUID) (*Board, e
 	// try to get existing board from DB
 	b, err := m.store.Boards.Get(ctx, id)
 
-	if err == nil {
+	if b != nil && err == nil {
 		// exist
 		m.logger.Info("board record exist", "id", id)
 		board, err = newBoard(m, b)
@@ -97,11 +98,12 @@ func (m *BoardManager) CreateBoard(ctx context.Context, id uuid.UUID) (*Board, e
 	}
 
 	// if no columns records, create initial columns
-	columns, err := board.store.Columns.List(ctx, board.ID)
+	keys, err := board.store.Columns.ListKeys(ctx, board.ID, 1)
+	fmt.Println(len(keys))
 	if err != nil {
 		return nil, err
 	}
-	if len(columns) == 0 {
+	if len(keys) == 0 {
 		// create initial columns using in-board store
 		for _, c := range m.initialBoardColumns {
 			col := models.NewColumn(c, board.ID)

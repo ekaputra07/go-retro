@@ -14,14 +14,15 @@ type UserRepo interface {
 }
 
 type BoardRepo interface {
-	List(ctx context.Context) ([]models.Board, error)
+	List(ctx context.Context, limit int) ([]models.Board, error)
 	Create(ctx context.Context, board models.Board) error
 	Get(ctx context.Context, id uuid.UUID) (*models.Board, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type ColumnRepo interface {
-	List(ctx context.Context, boardID uuid.UUID) ([]models.Column, error)
+	ListKeys(ctx context.Context, boardID uuid.UUID, limit int) ([]string, error)
+	List(ctx context.Context, boardID uuid.UUID, limit int) ([]models.Column, error)
 	Create(ctx context.Context, column models.Column) error
 	Get(ctx context.Context, boardID uuid.UUID, id uuid.UUID) (*models.Column, error)
 	Update(ctx context.Context, column models.Column) error
@@ -29,7 +30,7 @@ type ColumnRepo interface {
 }
 
 type CardRepo interface {
-	List(ctx context.Context, boardID uuid.UUID) ([]models.Card, error)
+	List(ctx context.Context, boardID uuid.UUID, limit int) ([]models.Card, error)
 	Create(ctx context.Context, card models.Card) error
 	Get(ctx context.Context, boardID uuid.UUID, id uuid.UUID) (*models.Card, error)
 	Update(ctx context.Context, card models.Card) error

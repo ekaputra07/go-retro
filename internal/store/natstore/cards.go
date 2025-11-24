@@ -19,12 +19,14 @@ func (u *cards) key(boardID, id uuid.UUID) string {
 	return fmt.Sprintf("boards.%s.cards.%s", boardID, id)
 }
 
-func (c *cards) List(ctx context.Context, boardID uuid.UUID) ([]models.Card, error) {
+func (c *cards) List(ctx context.Context, boardID uuid.UUID, limit int) ([]models.Card, error) {
 	var cards []models.Card
 	lister, err := c.kv.ListKeysFiltered(ctx, fmt.Sprintf("boards.%s.cards.*", boardID))
 	if err != nil {
 		return cards, err
 	}
+
+	counter := 0
 	for key := range lister.Keys() {
 		val, err := c.kv.Get(ctx, key)
 		if err != nil {
@@ -35,6 +37,10 @@ func (c *cards) List(ctx context.Context, boardID uuid.UUID) ([]models.Card, err
 			continue // skip
 		}
 		cards = append(cards, c)
+		counter++
+		if counter >= limit {
+			lister.Stop()
+		}
 	}
 	return cards, nil
 }
