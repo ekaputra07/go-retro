@@ -1,0 +1,5 @@
+#!/bin/bash -eu
+
+cd $(dirname $0)/..
+
+go build -v -o dist/goretro-web ./cmd/web

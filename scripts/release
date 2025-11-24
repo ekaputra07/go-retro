@@ -1,0 +1,17 @@
+#!/bin/bash -eu
+
+cd $(dirname $0)/..
+
+repo=${GORETRO_REPO:-ekaputra07/goretro}
+tag=${GORETRO_TAG:-"0.0.0"}
+
+echo "building..."
+docker build \
+    --build-arg version="v$tag" \
+    -t $repo:$tag \
+    -t $repo:latest . \
+    --platform linux/amd64
+
+echo "pushing to docker-hub..."
+docker push $repo:$tag
+docker push $repo:latest

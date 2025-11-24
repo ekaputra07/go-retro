@@ -9,12 +9,18 @@ import (
 var boardTpl = template.Must(template.ParseGlob("web/templates/*.html"))
 
 type templateData struct {
+	AppName       string
+	AppVersion    string
+	AppTagline    string
 	EnableTimer   bool
 	EnableStandup bool
 }
 
 func newTemplateData(c config) templateData {
 	return templateData{
+		AppName:       appName,
+		AppVersion:    appVersion,
+		AppTagline:    appTagline,
 		EnableTimer:   c.enableTimer,
 		EnableStandup: c.enableStandup,
 	}

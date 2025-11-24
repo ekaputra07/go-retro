@@ -27,6 +27,9 @@ RUN npm install && npm run build
 
 FROM alpine:edge
 
+ARG version="latest"
+ENV GORETRO_VERSION=${version}
+
 # Set the working directory
 WORKDIR /app
 

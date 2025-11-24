@@ -2,14 +2,38 @@ package board
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"slices"
 
 	"github.com/ekaputra07/go-retro/internal/models"
+	"github.com/ekaputra07/go-retro/internal/natsutil"
 	"github.com/ekaputra07/go-retro/internal/store"
+	"github.com/ekaputra07/go-retro/internal/store/memstore"
+	"github.com/google/uuid"
+	"github.com/nats-io/nats.go"
 )
+
+func boardStatusTopic(boardID uuid.UUID) string {
+	return fmt.Sprintf("board.%s.status", boardID)
+}
+
+func clientJoinTopic(boardID uuid.UUID) string {
+	return fmt.Sprintf("board.%s.client-joined", boardID)
+}
+
+func clientLeaveTopic(boardID uuid.UUID) string {
+	return fmt.Sprintf("board.%s.client-leave", boardID)
+}
+
+func inboundMessageTopic(boardID uuid.UUID) string {
+	return fmt.Sprintf("board.%s.msg-in", boardID)
+}
+
+func broadcastMessageTopic(boardID uuid.UUID) string {
+	return fmt.Sprintf("board.%s.msg-all", boardID)
+}
 
 // Board represents a single board instance that can be joined by clients
 type Board struct {
@@ -17,107 +41,108 @@ type Board struct {
 
 	manager *BoardManager
 	logger  *slog.Logger
-	store   *store.Store
-	clients map[*Client]bool
+	store   *store.BoardStore
+	nats    *natsutil.NATS
 	timer   *timer
+	clients map[uuid.UUID]Client
+	stop    chan bool
 
-	// client joined and leaved
-	join  chan *Client
-	leave chan *Client
-
-	// message to broadcast
-	message chan message
-
-	// to stop the board
-	stop chan struct{}
-}
-
-// Add adds client to the board
-func (b *Board) AddClient(client *Client) {
-	b.join <- client
-}
-
-// Remove removes client from board
-func (b *Board) RemoveClient(client *Client) {
-	b.leave <- client
+	// subscriptions channels
+	joinCh    chan *nats.Msg
+	leaveCh   chan *nats.Msg
+	messageCh chan *nats.Msg
+	statusCh  chan *nats.Msg
 }
 
 // Start starts the board and board's timer
 func (b *Board) Start() {
-	b.logger.Info("board started", "board", b.ID)
-
-	// use context to stop timer from board process
-	ctx, cancelTimer := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
 
 	// start the timer
 	go b.timer.run(ctx)
 
 	// listen to board events
-	go b.listen(cancelTimer)
+	go b.listen(ctx, cancel)
+
+	b.logger.Info("board started", "id", b.ID)
 }
 
-func (b *Board) listen(cancelTimer context.CancelFunc) {
+// Stop stops the board
+func (b *Board) Stop() {
+	b.stop <- true
+}
+
+func (b *Board) listen(ctx context.Context, cancel context.CancelFunc) {
+	// create subscriptions
+	joinSub, _ := b.nats.Conn.ChanSubscribe(clientJoinTopic(b.ID), b.joinCh)
+	leaveSub, _ := b.nats.Conn.ChanSubscribe(clientLeaveTopic(b.ID), b.leaveCh)
+	messageSub, _ := b.nats.Conn.ChanSubscribe(inboundMessageTopic(b.ID), b.messageCh)
+	statusSub, _ := b.nats.Conn.ChanSubscribe(boardStatusTopic(b.ID), b.statusCh)
+
+	defer func() {
+		joinSub.Unsubscribe()
+		leaveSub.Unsubscribe()
+		messageSub.Unsubscribe()
+		statusSub.Unsubscribe()
+
+		close(b.joinCh)
+		close(b.leaveCh)
+		close(b.messageCh)
+		close(b.statusCh)
+	}()
+
 	for {
 		select {
-		case client := <-b.join:
-			b.addClient(client)
+		case msg := <-b.statusCh:
+			msg.Respond(nil)
 
-			us := b.usersStateMessage()
-			bs := b.boardStateMessage()
-			no := b.notificationMessage(fmt.Sprintf("%s joined", client.User.Name))
+		case msg := <-b.joinCh:
+			var c Client
+			if err := json.Unmarshal(msg.Data, &c); err == nil {
+				user := *c.User
+				b.addClient(c)
+				b.broadcast(b.usersStateMessage(user))
+				b.broadcast(b.boardStateMessage(ctx, user))
 
-			// broadcast user state and notification to all except to newly joined client
-			b.broadcast([]message{us, no}, client.User)
-
-			// send joined user all messages except notification
-			// also send timer state only when its running or paused
-			msgs := []message{us, bs}
-			if slices.Contains([]timerStatus{timerStatusRunning, timerStatusPaused}, b.timer.Status) {
-				msgs = append(msgs, b.timerStateMessage())
-			}
-			b.send(msgs, client.User)
-
-		case client := <-b.leave:
-			b.removeClient(client)
-
-			// broadcast board status and leave notification
-			msgs := []message{
-				b.usersStateMessage(),
-				b.boardStateMessage(),
-			}
-			b.broadcast(msgs, nil)
-
-		case msg := <-b.message:
-			broadcast, err := b.update(msg)
-			if err != nil {
-				b.logger.Error("updating board failed", "board", b.ID, "err", err.Error())
-				continue
+				statuses := []timerStatus{timerStatusRunning, timerStatusPaused}
+				if slices.Contains(statuses, b.timer.Status) {
+					b.broadcast(b.timerStateMessage())
+				}
 			}
 
-			// broadcast board status if update is successful
-			if broadcast {
-				b.broadcast([]message{b.boardStateMessage()}, nil)
+		case msg := <-b.leaveCh:
+			var c Client
+			if err := json.Unmarshal(msg.Data, &c); err == nil {
+				b.removeClient(c)
+				b.broadcast(b.usersStateMessage(*c.User))
+			}
+
+		case msg := <-b.messageCh:
+			var m message
+			if err := json.Unmarshal(msg.Data, &m); err == nil {
+				broadcast, err := b.update(ctx, m)
+				if err != nil {
+					b.logger.Error("updating board failed", "board", b.ID, "err", err.Error())
+					continue
+				}
+
+				if broadcast {
+					b.broadcast(b.boardStateMessage(ctx, m.User))
+				}
 			}
 
 		case t := <-b.timer.state:
 			// broadcast timer state and notify timer state change
-			ts := b.timerStateMessage()
-			no := b.notificationMessage(t.statusMessage)
+			b.broadcast(b.timerStateMessage())
 
-			// broadcast timer state to all
-			b.broadcast([]message{ts}, nil)
-
-			// if timer state changes was a result of user action (commandClient)
-			// broadcast notification to all except lastCommandClient
-			if t.lastCommandClient != nil {
-				b.broadcast([]message{no}, t.lastCommandClient.User)
+			// if timer state changes was a result of user action: broadcast notification
+			if t.lastCmdUser.ID != uuid.Nil {
+				b.broadcast(b.notificationMessage(t.statusMessage, t.lastCmdUser))
 			}
 
 		case <-b.stop:
-			// cleanup timer when board stopped
-			if b.timer != nil {
-				cancelTimer()
-			}
+			// stop timer
+			cancel()
 
 			// stop and unregister from ws server
 			b.manager.unregisterChan <- b
@@ -127,41 +152,36 @@ func (b *Board) listen(cancelTimer context.CancelFunc) {
 	}
 }
 
-func (b *Board) addClient(client *Client) {
+func (b *Board) addClient(client Client) {
 	b.logger.Info("client join board", "board", b.ID, "client", client.ID)
-	b.clients[client] = true
+	b.clients[client.ID] = client
 }
 
-func (b *Board) removeClient(client *Client) {
-	if _, ok := b.clients[client]; ok {
+func (b *Board) removeClient(client Client) {
+	if _, ok := b.clients[client.ID]; ok {
 		b.logger.Info("client leave board", "board", b.ID, "client", client.ID)
-		delete(b.clients, client)
-
-		// if no joined clients, stop board
-		if len(b.clients) == 0 {
-			close(b.stop)
-		}
+		delete(b.clients, client.ID)
 	}
 }
 
 // update the board and broadcast its status if desired
 // (bool, error) --> (broadcast?, error)
-func (b *Board) update(msg message) (bool, error) {
+func (b *Board) update(ctx context.Context, msg message) (bool, error) {
 	switch msg.Type {
 	case messageTypeColumnNew:
-		return true, b.createColumn(msg)
+		return true, b.createColumn(ctx, msg)
 	case messageTypeColumnDelete:
-		return true, b.deleteColumn(msg)
+		return true, b.deleteColumn(ctx, msg)
 	case messageTypeColumnUpdate:
-		return true, b.updateColumn(msg)
+		return true, b.updateColumn(ctx, msg)
 	case messageTypeCardNew:
-		return true, b.createCard(msg)
+		return true, b.createCard(ctx, msg)
 	case messageTypeCardDelete:
-		return true, b.deleteCard(msg)
+		return true, b.deleteCard(ctx, msg)
 	case messageTypeCardUpdate:
-		return true, b.updateCard(msg)
+		return true, b.updateCard(ctx, msg)
 	case messageTypeCardVote:
-		return true, b.voteCard(msg)
+		return true, b.voteCard(ctx, msg)
 	case messageTypeTimerCmd:
 		return false, b.handleTimerCommand(msg)
 	}
@@ -169,34 +189,34 @@ func (b *Board) update(msg message) (bool, error) {
 }
 
 // usersStateMessage builds and returns the users state message
-func (b *Board) usersStateMessage() message {
+func (b *Board) usersStateMessage(user models.User) message {
 	// clients map to slice
-	var clients []*Client
-	for c := range b.clients {
+	clients := []Client{}
+	for _, c := range b.clients {
 		clients = append(clients, c)
 	}
 
 	return message{
 		Type: messageTypeBoardUsers,
 		Data: clients,
+		User: user,
 	}
 }
 
 // boardStateMessage builds and returns the board status message
-func (b *Board) boardStateMessage() message {
+func (b *Board) boardStateMessage(ctx context.Context, user models.User) message {
 	// list columns
-	columns, err := b.store.Columns.List(b.ID)
+	columns, err := b.store.Columns.List(ctx)
 	if err != nil {
 		b.logger.Error("failed fetching columns", "board", b.ID, "err", err.Error())
-		columns = []*models.Column{}
 	}
 
 	// list cards
-	cards, err := b.store.Cards.List(b.ID)
+	cards, err := b.store.Cards.List(ctx)
 	if err != nil {
 		b.logger.Error("failed fetching cards", "board", b.ID, "err", err.Error())
-		cards = []*models.Card{}
 	}
+
 	return message{
 		Type: messageTypeBoardStatus,
 		Data: map[string]any{
@@ -204,6 +224,7 @@ func (b *Board) boardStateMessage() message {
 			"columns": columns,
 			"cards":   cards,
 		},
+		User: user,
 	}
 }
 
@@ -216,51 +237,63 @@ func (b *Board) timerStateMessage() message {
 }
 
 // notificationMessage builds and returns the notification message
-func (b *Board) notificationMessage(msg string) message {
+func (b *Board) notificationMessage(msg string, user models.User) message {
 	return message{
 		Type: messageTypeBoardNotification,
 		Data: msg,
+		User: user,
 	}
 }
 
-// send sends messages to specific user
-func (b *Board) send(msgs []message, user *models.User) {
-	for c := range b.clients {
-		if user != nil && c.User.ID == user.ID {
-			for _, m := range msgs {
-				c.message <- m
-			}
-		}
-
+func (b *Board) broadcast(msg message) {
+	data, err := json.Marshal(msg)
+	if err != nil {
+		b.logger.Error(fmt.Sprintf("failed marshaling message: %s", err.Error()))
 	}
-}
-
-// broadcast sends messages to all users except excludeUser
-func (b *Board) broadcast(msgs []message, excludeUser *models.User) {
-	for c := range b.clients {
-		if excludeUser != nil && c.User.ID == excludeUser.ID {
-			continue
-		}
-		for _, m := range msgs {
-			c.message <- m
-		}
+	if err = b.nats.Conn.Publish(broadcastMessageTopic(b.ID), data); err != nil {
+		b.logger.Error(fmt.Sprintf("failed publishing message: %s", err.Error()))
 	}
 }
 
 // handleTimerCommand handles timer command message
 func (b *Board) handleTimerCommand(msg message) error {
-	data := msg.Data.(map[string]any)
-	cmdAny, ok := data["cmd"]
-	if !ok {
-		return errors.New("handleTimerCommand payload missing `cmd` field")
-	}
-	cmd := timerCmd{cmd: cmdAny.(string), client: msg.fromClient}
+	var cmd string
+	var value string
 
-	value, ok := data["value"]
-	if ok {
-		cmd.value = value.(string)
+	if err := msg.stringVar(&cmd, "cmd"); err != nil {
+		return err
+	}
+	command := timerCmd{cmd: cmd, user: msg.User}
+
+	if err := msg.stringVar(&value, "value"); err == nil {
+		command.value = value
 	}
 
-	b.timer.cmd <- cmd
+	b.timer.cmd <- command
 	return nil
+}
+
+// newBoard creates board instance (using in-memory store)
+func newBoard(_ context.Context, manager *BoardManager, board *models.Board) (*Board, error) {
+	// create new storage to store board's data
+	// store, err := natstore.NewBoardStore(ctx, manager.nats, fmt.Sprintf("goretro-board-%s", board.ID))
+	// if err != nil {
+	// 	return nil, err
+	// }
+	store := memstore.NewBoardStore()
+
+	return &Board{
+		Board:     board,
+		manager:   manager,
+		logger:    manager.logger,
+		store:     store,
+		nats:      manager.nats,
+		clients:   make(map[uuid.UUID]Client),
+		timer:     newTimer(manager.logger),
+		stop:      make(chan bool),
+		joinCh:    make(chan *nats.Msg, 1),
+		leaveCh:   make(chan *nats.Msg, 1),
+		messageCh: make(chan *nats.Msg, 1),
+		statusCh:  make(chan *nats.Msg, 1),
+	}, nil
 }
