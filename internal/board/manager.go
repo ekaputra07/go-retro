@@ -2,7 +2,6 @@ package board
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"github.com/ekaputra07/go-retro/internal/models"
@@ -99,7 +98,6 @@ func (m *BoardManager) CreateBoard(ctx context.Context, id uuid.UUID) (*Board, e
 
 	// if no columns records, create initial columns
 	keys, err := board.store.Columns.ListKeys(ctx, board.ID, 1)
-	fmt.Println(len(keys))
 	if err != nil {
 		return nil, err
 	}
