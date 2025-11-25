@@ -1,9 +1,7 @@
 import { EmojiButton } from '@joeattardi/emoji-button';
+import { App, Client, ClientConnection, Column, Card } from './types/app';
 
-export default () => ({
-    socket: null,
-    username: null,
-    currentUser: null,
+export default (): App => ({
     openUsernameModal: false,
     openCardModal: false,
     openColumnModal: false,
@@ -32,12 +30,10 @@ export default () => ({
     standup: {
         show: false,
         title: "Stand-up",
-        current_user_id: null,
         shuffled_user_ids: [],
     },
-    emojiPicker: null,
-    initBoard() {
-        this.username = localStorage.getItem('username');
+    initBoard(): void {
+        this.username = localStorage.getItem('username') || '';
         this.joinBoard();
         this.emojiPicker = new EmojiButton({
             autoHide: false,
@@ -49,7 +45,7 @@ export default () => ({
             this.tempCard.name += selection.emoji;
         });
     },
-    wsConnect(username) {
+    wsConnect(username: string): void {
         const host = window.location.host;
         const protocol = window.location.protocol;
         const pathname = window.location.pathname;
@@ -59,7 +55,7 @@ export default () => ({
         var app = this;
         this.socket.addEventListener("open", (_event) => {
             console.log(`Connected to WebSocket as ${username}...`);
-            this.socket.send(JSON.stringify({ type: 'me' }));
+            app.socket?.send(JSON.stringify({ type: 'me' }));
         });
 
         this.socket.addEventListener("message", (event) => {
@@ -67,7 +63,7 @@ export default () => ({
         });
 
         this.socket.addEventListener("close", (event) => {
-            app.socket = null;
+            app.socket = undefined;
             app.dispatchCustomEvents("flash", "You're disconnected. Reconnecting...");
             console.log(`Disconnected from WebSocket: ${event.code} ${event.reason}`);
             setTimeout(() => {
@@ -75,8 +71,9 @@ export default () => ({
             }, 5000);
         });
     },
-    onWsEvent(event) {
-        const e = JSON.parse(event.data);
+    onWsEvent(event: MessageEvent): void {
+        const e: any = JSON.parse(event.data);
+
         switch (e.type) {
             case 'me':
                 this.currentUser = e.user;
@@ -91,15 +88,16 @@ export default () => ({
                 break;
 
             case 'board.users':
-                const sortedClients = e.data.sort((a, b) => a.joined_at - b.joined_at);
-                const uniqueClients = [...new Set(sortedClients.map(c => c.user.id))];
+                const sortedClients: Client[] = e.data.sort((a: Client, b: Client) => a.joined_at - b.joined_at);
+                const uniqueClients: string[] = [...new Set(sortedClients.map((c: Client) => c.user.id))];
+
                 this.numClients = uniqueClients.length;
-                this.clientConnections = sortedClients.reduce((acc, c) => {
+                this.clientConnections = sortedClients.reduce((acc: ClientConnection, c: Client) => {
                     if (!acc[c.user.id]) acc[c.user.id] = 0;
                     acc[c.user.id]++;
                     return acc;
                 }, {});
-                this.clients = uniqueClients.map(id => sortedClients.find(c => c.user.id === id));
+                this.clients = uniqueClients.map((id: string) => sortedClients.find((c: Client) => c.user.id === id) as Client);
 
                 if (this.standup.show) {
                     this.refreshShuffledUserIds();
@@ -130,7 +128,7 @@ export default () => ({
                 break;
         }
     },
-    applyOperation(list, change) {
+    applyOperation(list: Column[] | Card[], change: any): void {
         var idx = list.findIndex(c => c.id == change.id)
         if (idx >= 0) {
             if (change.op == "put") {
@@ -138,32 +136,30 @@ export default () => ({
             } else if (change.op == "del") {
                 list.splice(idx, 1);
             }
-            list = list.sort((a, b) => a.created_at - b.created_at);
+            list = list.sort((a, b) => a.created_at! - b.created_at!);
         } else if (idx == -1 && change.op == "put") {
             list.push(change.obj);
-            list = list.sort((a, b) => a.created_at - b.created_at);
+            list = list.sort((a, b) => a.created_at! - b.created_at!);
         }
     },
-    askUsername() {
+    askUsername(): void {
         this.openUsernameModal = true;
-        setTimeout(() => this.$refs.username.focus(), 200);
     },
-    joinBoard() {
-        if (this.username == null || this.username == '') {
+    joinBoard(): void {
+        if (this.username == '' || this.username == '') {
             this.askUsername();
-            return;
+        } else {
+            localStorage.setItem('username', this.username!);
+            this.wsConnect(this.username!);
+            this.closeModal('username');
         }
-
-        localStorage.setItem('username', this.username);
-        this.wsConnect(this.username);
-        this.closeModal('username');
     },
-    columnNameById(id) {
+    columnNameById(id: string): string {
         const column = this.columns.find(c => c.id === id);
         return column ? column.name : '';
     },
-    editColumn(column) {
-        if (column == null) {
+    editColumn(column: Column): void {
+        if (column == undefined) {
             if (this.columns.length >= 6) {
                 this.dispatchCustomEvents('flash', 'You can only have a maximum of 6 columns');
                 return;
@@ -177,20 +173,20 @@ export default () => ({
         this.openColumnModal = true;
         setTimeout(() => this.$refs.columnName.focus(), 200);
     },
-    saveColumn() {
+    saveColumn(): void {
         if (this.tempColumn.name == '') return;
         if (this.tempColumn.id) {
-            this.socket.send(JSON.stringify({ type: 'column.update', data: this.tempColumn }));
+            this.socket?.send(JSON.stringify({ type: 'column.update', data: this.tempColumn }));
         } else {
-            this.socket.send(JSON.stringify({ type: 'column.new', data: { name: this.tempColumn.name } }));
+            this.socket?.send(JSON.stringify({ type: 'column.new', data: { name: this.tempColumn.name } }));
         }
         this.closeModal('column');
     },
-    deleteColumn(column) {
-        this.socket.send(JSON.stringify({ type: 'column.delete', data: { id: column.id } }));
+    deleteColumn(column: Column): void {
+        this.socket?.send(JSON.stringify({ type: 'column.delete', data: { id: column.id } }));
         this.closeModal('column');
     },
-    editCard(column, card) {
+    editCard(column: Column, card: Card): void {
         if (card == null) {
             this.tempCard.id = '';
             this.tempCard.name = '';
@@ -203,25 +199,25 @@ export default () => ({
         this.openCardModal = true;
         setTimeout(() => this.$refs.cardName.focus(), 200);
     },
-    saveCard() {
+    saveCard(): void {
         if (this.tempCard.name == '') return;
 
         if (this.tempCard.id) {
-            this.socket.send(JSON.stringify({ type: 'card.update', data: this.tempCard }));
+            this.socket?.send(JSON.stringify({ type: 'card.update', data: this.tempCard }));
         } else {
-            this.socket.send(JSON.stringify({ type: 'card.new', data: { name: this.tempCard.name, column_id: this.tempCard.column_id } }));
+            this.socket?.send(JSON.stringify({ type: 'card.new', data: { name: this.tempCard.name, column_id: this.tempCard.column_id } }));
         }
         this.closeModal('card');
     },
-    voteCard(card, vote) {
+    voteCard(card: Card, vote: number): void {
         if (vote !== 1 && vote !== -1) return;
-        this.socket.send(JSON.stringify({ type: 'card.vote', data: { id: card.id, vote: vote } }));
+        this.socket?.send(JSON.stringify({ type: 'card.vote', data: { id: card.id, vote: vote } }));
     },
-    deleteCard(card) {
-        this.socket.send(JSON.stringify({ type: 'card.delete', data: { id: card.id } }));
+    deleteCard(card: Card): void {
+        this.socket?.send(JSON.stringify({ type: 'card.delete', data: { id: card.id } }));
         this.closeModal('card');
     },
-    closeModal(name) {
+    closeModal(name: string): void {
         if (name === 'username') {
             this.openUsernameModal = false;
         }
@@ -240,36 +236,40 @@ export default () => ({
             this.openTimerModal = false;
         }
     },
-    onDragStart(event, card) {
-        event.dataTransfer.setData('cardId', card.id);
-        event.dataTransfer.setData('cardColumnId', card.column_id);
-        event.target.classList.add('opacity-10');
+    onDragStart(event: DragEvent, card: Card): void {
+        event.dataTransfer?.setData('cardId', card.id);
+        event.dataTransfer?.setData('cardColumnId', card.column_id);
+        const dragTarget = event.target as HTMLElement | null;
+        dragTarget?.classList.add('opacity-10');
     },
-    onDragEnd(event) {
-        event.target.classList.remove('opacity-10');
+    onDragEnd(event: DragEvent): void {
+        const dragTarget = event.target as HTMLElement | null;
+        dragTarget?.classList.remove('opacity-10');
     },
-    onDragOver(event) {
+    onDragOver(event: DragEvent): void {
         event.preventDefault();
-        return false;
     },
-    onDragEnter(event) {
-        if (!event.target.classList.contains('is-dropzone')) return;
-        event.target.classList.add('bg-blue-200');
+    onDragEnter(event: DragEvent): void {
+        const dragTarget = event.target as HTMLElement | null;
+        if (!dragTarget?.classList.contains('is-dropzone')) return;
+        dragTarget?.classList.add('bg-blue-200');
     },
-    onDragLeave(event) {
-        if (!event.target.classList.contains('is-dropzone')) return;
-        event.target.classList.remove('bg-blue-200');
+    onDragLeave(event: DragEvent): void {
+        const dragTarget = event.target as HTMLElement | null;
+        if (!dragTarget?.classList.contains('is-dropzone')) return;
+        dragTarget?.classList.remove('bg-blue-200');
     },
-    onDrop(event, newColumn) {
+    onDrop(event: DragEvent, newColumn: Column): void {
         event.stopPropagation(); // Stops some browsers from redirecting.
         event.preventDefault();
-        event.target.classList.remove('bg-blue-200');
+        const dragTarget = event.target as HTMLElement | null;
+        dragTarget?.classList.remove('bg-blue-200');
 
-        const cardId = event.dataTransfer.getData('cardId');
-        const cardColumnId = event.dataTransfer.getData('cardColumnId');
+        const cardId = event.dataTransfer?.getData('cardId');
+        const cardColumnId = event.dataTransfer?.getData('cardColumnId');
 
         if (cardColumnId === newColumn.id) {
-            event.dataTransfer.clearData();
+            event.dataTransfer?.clearData();
             return;
         }
 
@@ -281,42 +281,42 @@ export default () => ({
         // Update
         let cardIndex = this.cards.findIndex(c => c.id === cardId);
         this.cards[cardIndex].column_id = newColumn.id;
-        this.socket.send(JSON.stringify({ type: 'card.update', data: this.cards[cardIndex] }));
-        event.dataTransfer.clearData();
+        this.socket?.send(JSON.stringify({ type: 'card.update', data: this.cards[cardIndex] }));
+        event.dataTransfer?.clearData();
     },
-    startTimer() {
+    startTimer(): void {
         if (this.timer.running) return;
         this.closeModal('timer');
-        this.socket.send(JSON.stringify({ type: 'timer.cmd', data: { cmd: 'start', value: this.timer.duration } }));
+        this.socket?.send(JSON.stringify({ type: 'timer.cmd', data: { cmd: 'start', value: this.timer.duration } }));
     },
-    pauseTimer() {
+    pauseTimer(): void {
         if (!this.timer.running) return;
-        this.socket.send(JSON.stringify({ type: 'timer.cmd', data: { cmd: 'pause' } }));
+        this.socket?.send(JSON.stringify({ type: 'timer.cmd', data: { cmd: 'pause' } }));
     },
-    resumeTimer() {
+    resumeTimer(): void {
         if (this.timer.running) return;
-        this.socket.send(JSON.stringify({ type: 'timer.cmd', data: { cmd: 'start' } }));
+        this.socket?.send(JSON.stringify({ type: 'timer.cmd', data: { cmd: 'start' } }));
     },
-    stopTimer(isCommand) {
-        if (isCommand) this.socket.send(JSON.stringify({ type: 'timer.cmd', data: { cmd: 'stop' } }));
+    stopTimer(isCommand: boolean): void {
+        if (isCommand) this.socket?.send(JSON.stringify({ type: 'timer.cmd', data: { cmd: 'stop' } }));
 
         this.timer.show = false;
         this.timer.running = false;
         this.timer.done = false;
         this.timer.display = "00:00";
     },
-    playSound() {
+    playSound(): void {
         const audio = new Audio('/static/notif.wav');
         audio.play();
     },
-    numClientConnections(userId) {
+    numClientConnections(userId: string): number {
         return this.clientConnections[userId] || 0;
     },
-    dispatchCustomEvents(eventName, message) {
+    dispatchCustomEvents(eventName: string, message: string): void {
         let customEvent = new CustomEvent(eventName, { detail: { message: message } });
         window.dispatchEvent(customEvent);
     },
-    gridColsClass() {
+    gridColsClass(): string {
         return {
             1: 'grid-cols-1',
             2: 'grid-cols-2',
@@ -326,13 +326,13 @@ export default () => ({
             6: 'grid-cols-6',
         }[this.columns.length] || 'grid-cols-4';
     },
-    openEmojiPicker() {
-        this.emojiPicker.showPicker(this.$event.target);
+    openEmojiPicker(): void {
+        this.emojiPicker?.showPicker(this.$event.target);
     },
-    getClientById(id) {
+    getClientById(id: string): Client | undefined {
         return this.clients.find(c => c.user.id === id);
     },
-    startStandup() {
+    startStandup(): void {
         if (this.clients.length < 2) {
             this.dispatchCustomEvents('flash', 'Not enough people to start a stand-up!');
             return;
@@ -344,15 +344,15 @@ export default () => ({
             [userIds[i], userIds[j]] = [userIds[j], userIds[i]];
         }
         this.standup.shuffled_user_ids = userIds;
-        this.setCurrentStandupUser(this.getClientById(userIds[0]));
+        this.setCurrentStandupUser(this.getClientById(userIds[0])!);
         this.standup.show = true;
     },
-    closeStandup() {
-        this.standup.current_user_id = null;
+    closeStandup(): void {
+        this.standup.current_user_id = undefined;
         this.standup.shuffled_user_ids = [];
         this.standup.show = false;
     },
-    refreshShuffledUserIds() {
+    refreshShuffledUserIds(): void {
         let newShuffledUserIds = [];
         let newUserIds = this.clients.map(c => c.user.id).filter(id => !this.standup.shuffled_user_ids.includes(id));
         let missingUserIds = this.standup.shuffled_user_ids.filter(id => !this.clients.map(c => c.user.id).includes(id));
@@ -368,7 +368,7 @@ export default () => ({
         }
         this.standup.shuffled_user_ids = newShuffledUserIds;
     },
-    setCurrentStandupUser(client) {
+    setCurrentStandupUser(client: Client): void {
         this.dispatchCustomEvents('flash', `${client.user.name}'s turn`);
         this.standup.current_user_id = client.user.id;
     }
