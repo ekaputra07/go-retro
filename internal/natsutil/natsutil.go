@@ -17,7 +17,7 @@ func (n *NATS) Close() {
 	n.Conn.Drain()
 }
 
-// Connect setups NATS connection and KV store, it panic when any error occured
+// Connect setups NATS connection and KV store, it panic when any error occurred
 func Connect(url, credentials string) *NATS {
 	options := []nats.Option{
 		nats.Name("goretro-web"),

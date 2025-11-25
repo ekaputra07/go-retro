@@ -1,5 +1,5 @@
 // WARNING: NATS store which is based on NATS KV is experimental feature in this project.
-// Even though its working, the UX feels noticably slower due to:
+// Even though its working, the UX feels noticeably slower due to:
 // - NATS KV only support List keys, but the values need to be pulled manually using NATS Get
 // - Architectural decision where board status updates always pulls all board columns and cards
 

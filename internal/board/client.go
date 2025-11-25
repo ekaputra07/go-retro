@@ -110,7 +110,7 @@ func (c *Client) write(ctx context.Context) {
 		select {
 		case kve := <-w.Updates():
 			if kve != nil {
-				s, err := newStreamFromKVE(kve)
+				s, err := newStream(kve.Key(), kve.Operation(), kve.Value())
 				if s != nil && err == nil {
 					c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 					if err := c.conn.WriteJSON(s); err != nil {

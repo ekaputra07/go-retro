@@ -18,12 +18,12 @@ type stream struct {
 	Object any    `json:"obj"`
 }
 
-func newStreamFromKVE(kve jetstream.KeyValueEntry) (*stream, error) {
+func newStream(key string, op jetstream.KeyValueOp, value []byte) (*stream, error) {
 	// key format: boards.<id>.<type>.<id>
-	tokens := strings.Split(kve.Key(), ".")
+	tokens := strings.Split(key, ".")
 	s := stream{Type: tokens[2], ID: tokens[3]}
 
-	switch kve.Operation() {
+	switch op {
 	case jetstream.KeyValuePut:
 		s.Op = "put"
 	case jetstream.KeyValueDelete:
@@ -37,13 +37,13 @@ func newStreamFromKVE(kve jetstream.KeyValueEntry) (*stream, error) {
 	switch s.Type {
 	case "columns":
 		var c models.Column
-		if err := json.Unmarshal(kve.Value(), &c); err != nil {
+		if err := json.Unmarshal(value, &c); err != nil {
 			return nil, err
 		}
 		s.Object = c
 	case "cards":
 		var c models.Card
-		if err := json.Unmarshal(kve.Value(), &c); err != nil {
+		if err := json.Unmarshal(value, &c); err != nil {
 			return nil, err
 		}
 		s.Object = c
@@ -54,6 +54,7 @@ func newStreamFromKVE(kve jetstream.KeyValueEntry) (*stream, error) {
 }
 
 // messageType represents the type of message that can be sent to and from the client
+// in addition to `stream` above
 type messageType string
 
 const (

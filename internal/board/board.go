@@ -15,23 +15,23 @@ import (
 )
 
 func boardStatusTopic(boardID uuid.UUID) string {
-	return fmt.Sprintf("board.%s.status", boardID)
+	return fmt.Sprintf("boards.%s.status", boardID)
 }
 
 func clientJoinTopic(boardID uuid.UUID) string {
-	return fmt.Sprintf("board.%s.client-joined", boardID)
+	return fmt.Sprintf("boards.%s.client-joined", boardID)
 }
 
 func clientLeaveTopic(boardID uuid.UUID) string {
-	return fmt.Sprintf("board.%s.client-leave", boardID)
+	return fmt.Sprintf("boards.%s.client-leave", boardID)
 }
 
 func inboundMessageTopic(boardID uuid.UUID) string {
-	return fmt.Sprintf("board.%s.msg-in", boardID)
+	return fmt.Sprintf("boards.%s.msg-in", boardID)
 }
 
 func broadcastMessageTopic(boardID uuid.UUID) string {
-	return fmt.Sprintf("board.%s.msg-all", boardID)
+	return fmt.Sprintf("boards.%s.msg-out", boardID)
 }
 
 // Board represents a single board instance that can be joined by clients
