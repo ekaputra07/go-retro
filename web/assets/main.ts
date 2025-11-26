@@ -1,6 +1,6 @@
 import Alpine from "alpinejs";
-import app from "./app";
+import { App } from "./application";
 
 window.Alpine = Alpine;
-Alpine.data('app', app);
+Alpine.store("app", App);
 Alpine.start();

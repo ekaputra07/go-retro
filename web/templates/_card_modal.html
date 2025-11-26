@@ -1,29 +1,29 @@
 {{ define "card_modal" }}
 <!-- card modal -->
-<div class="fixed inset-0 flex h-screen w-full items-end md:items-center justify-center z-10" x-show="openCardModal">
+<div class="fixed inset-0 flex h-screen w-full items-end md:items-center justify-center z-10" x-show="$store.app.openCardModal">
     <div class="absolute inset-0 bg-black opacity-50"></div>
     <div class="md:p-4 md:max-w-lg mx-auto w-full flex-1 relative overflow-hidden">
         <div class="w-full rounded-t-lg md:rounded-md bg-white p-8">
 
-            <h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="!tempCard.id">New card for <span class="leading-normal text-sky-600" x-text="columnNameById(tempCard.column_id)"></span></h2>
-            <h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="tempCard.id">Edit card</h2>
+            <h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="!$store.app.tempCard.id">New card for <span class="leading-normal text-sky-600" x-text="$store.app.columnNameById($store.app.tempCard.column_id)"></span></h2>
+            <h2 class="font-semibold text-xl mb-6 text-gray-800" x-show="$store.app.tempCard.id">Edit card</h2>
 
             <div class="mb-4 relative">
-                <button class="absolute top-0 right-0 mt-2 mr-2" @click="openEmojiPicker()" title="Add emoji">
+                <button class="absolute top-0 right-0 mt-2 mr-2 cursor-pointer" @click="$store.app.openEmojiPicker($event)" title="Add emoji">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6 text-gray-500 hover:text-gray-700">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z" />
                     </svg>                      
                 </button>
-                <input type="text" class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-sky-500" x-model="tempCard.name" x-ref="cardName" autofocus @keydown.enter="saveCard()"/>
+                <input type="text" class="bg-gray-200 appearance-none border-2 border-gray-200 rounded-md w-full py-2 px-4 text-gray-700 leading-tight focus:outline-none focus:bg-white focus:border-sky-500" x-model="$store.app.tempCard.name" x-ref="cardName" autofocus @keydown.enter="$store.app.saveCard()"/>
             </div>
 
             <div class="flex justify-between items-center mt-8 text-right">
-                <a @click="deleteCard(tempCard)" class="text-sm text-red-600 font-medium cursor-pointer" x-show="tempCard.id">Delete</a>
+                <a @click="$store.app.deleteCard($store.app.tempCard)" class="text-sm text-red-600 font-medium cursor-pointer" x-show="$store.app.tempCard.id">Delete</a>
                 <div class="flex-1">
-                <button type="button" class="bg-white hover:bg-gray-100 text-gray-700 font-semibold py-1 px-4 border border-gray-300 rounded-md shadow-sm mr-2" @click="closeModal('card')">
+                <button type="button" class="bg-white hover:bg-gray-100 text-gray-700 font-semibold py-1 px-4 border border-gray-300 rounded-md shadow-sm mr-2" @click="$store.app.closeModal('card')">
                     Cancel
                 </button>
-                <button type="button" class="text-white font-semibold py-1 px-4 border border-transparent rounded-md shadow-sm bg-sky-600 hover:bg-sky-700" @click="saveCard()">
+                <button type="button" class="text-white font-semibold py-1 px-4 border border-transparent rounded-md shadow-sm bg-sky-600 hover:bg-sky-700" @click="$store.app.saveCard()">
                     Save
                 </button>	
                 </div>

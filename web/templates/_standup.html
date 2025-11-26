@@ -3,19 +3,19 @@
 style="min-height: 150px; width: 200px;"
 >
 <div class="flex justify-between items-center px-4 py-2">
-    <h2 x-text="standup.title" class="font-bold text-gray-800 text-2xl"></h2>
-    <span class="cursor-pointer text-gray-400 hover:text-gray-500" @click="closeStandup()" title="Stop stand-up">
+    <h2 x-text="$store.app.standup.title" class="font-bold text-gray-800 text-2xl"></h2>
+    <span class="cursor-pointer text-gray-400 hover:text-gray-500" @click="$store.app.closeStandup()" title="Stop stand-up">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
             <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
         </svg>                                                           
     </span>
 </div>
 <div class="py-2">
-    <template x-for="uid in standup.shuffled_user_ids" :key="uid">
-        <div x-data="{ client: getClientById(uid) }" :class="`flex justify-between items-center cursor-pointer px-4 py-2 hover:bg-green-50` + (client.user.id === standup.current_user_id ? ' bg-green-100' : '')" :title="client.user.name" @click="setCurrentStandupUser(client)">
+    <template x-for="uid in $store.app.standup.shuffled_user_ids" :key="uid">
+        <div x-data="{ client: $store.app.getClientById(uid) }" :class="`flex justify-between items-center cursor-pointer px-4 py-2 hover:bg-green-50` + (client.user.id === $store.app.standup.current_user_id ? ' bg-green-100' : '')" :title="client.user.name" @click="$store.app.setCurrentStandupUser(client)">
             <img :src="'/static/avatar/' + client.user.avatar_id + '.png'" alt="avatar" class="w-6 h-6 rounded-full border-2 border-white shadow-sm mr-2 cursor-pointer" />
             <span class="flex-1 font-bold text-sm text-gray-700 cursor-pointer" x-text="client.user.name"></span>
-            <span class="relative flex size-3 mr-1" x-show="client.user.id === standup.current_user_id" @click="setCurrentStandupUser(client)">
+            <span class="relative flex size-3 mr-1" x-show="client.user.id === standup.current_user_id" @click="$store.app.setCurrentStandupUser(client)">
                 <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-75"></span>
                 <span class="relative inline-flex size-3 rounded-full bg-green-600"></span>
             </span>
