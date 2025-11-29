@@ -11,18 +11,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Go
-        uses: actions/setup-go@v4
-        with:
-          go-version: '1.24'
-
-      # extra check to make sure everything is OK
-      - name: Build
-        run: ./scripts/build
-
-      - name: Test
-        run: ./scripts/test
-
       - id: version
         run: echo ::set-output name=version::${GITHUB_REF/refs\/tags\//}
 
