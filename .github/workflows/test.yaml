@@ -12,21 +12,26 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - uses: actions/setup-node@v6
-      with:
-        node-version: 22
-  
-    # need to build UI before build Go
-    - name: Build
-      run: ./scripts/build-ui
-
-    - name: Set up Go
-      uses: actions/setup-go@v4
+    - uses: actions/setup-go@v4
       with:
         go-version: '1.24'
 
+    - uses: actions/setup-node@v6
+      with:
+        node-version: 22
+
+    - name: npm dependencies
+      run: ./scripts/npm-install
+
+    - name: go dependencies
+      run: ./scripts/go-install
+
+    # need to build UI before build Go
+    - name: build UI
+      run: ./scripts/npm-build
+
     - name: Build
-      run: ./scripts/build
+      run: ./scripts/go-build
 
     - name: Test
       run: ./scripts/test
