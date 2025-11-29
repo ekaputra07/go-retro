@@ -236,7 +236,6 @@ func (b *Board) handleTimerCommand(msg message) error {
 	if err := msg.stringVar(&value, "value"); err == nil {
 		command.value = value
 	}
-
 	b.timer.cmd <- command
 	return nil
 }

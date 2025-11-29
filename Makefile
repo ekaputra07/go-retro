@@ -1,13 +1,16 @@
-npm-install:
-	cd web/assets && npm install
+ui-install:
+	cd web/ui && npm install
 
-npm-build:
-	cd web/assets && npm run build
+ui-build:
+	cd web/ui && npm run build
+
+ui-dev:
+	cd web/ui && npm run dev
 
 go-deps:
 	go mod tidy
 
-setup: go-deps npm-install
+setup: go-deps ui-install
 
 build:
 	./scripts/build
@@ -15,5 +18,5 @@ build:
 test:
 	./scripts/test
 
-compose: npm-build
+compose: ui-build
 	docker compose up

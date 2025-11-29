@@ -86,14 +86,26 @@ func (c *Client) read() {
 // write writes message to the socket
 func (c *Client) write(ctx context.Context) {
 	// subscribe for messages
-	messageSub, _ := c.nats.Conn.ChanSubscribe(broadcastMessageTopic(c.BoardID), c.messageCh)
+	messageSub, err := c.nats.Conn.ChanSubscribe(broadcastMessageTopic(c.BoardID), c.messageCh)
+	if err != nil {
+		c.logger.Error("client subscribe error -->", "id", c.ID, "err", err.Error())
+		return
+	}
 
 	// watch for columns and cards changes
-	kv, _ := c.nats.JS.KeyValue(ctx, "goretro")
-	w, _ := kv.WatchFiltered(ctx, []string{
+	kv, err := c.nats.JS.KeyValue(ctx, "goretro")
+	if err != nil {
+		c.logger.Error("client kv error -->", "id", c.ID, "err", err.Error())
+		return
+	}
+	w, err := kv.WatchFiltered(ctx, []string{
 		fmt.Sprintf("boards.%s.columns.*", c.BoardID),
 		fmt.Sprintf("boards.%s.cards.*", c.BoardID),
 	})
+	if err != nil {
+		c.logger.Error("client watch error -->", "id", c.ID, "err", err.Error())
+		return
+	}
 
 	// pinger
 	ticker := time.NewTicker(pingPeriod)

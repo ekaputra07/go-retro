@@ -14,7 +14,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-const TTL = 24 * time.Hour // only available for 24hr since creation
+const TTL = 2 * time.Hour // only available for 2hrs since creation
 
 func getKV(ctx context.Context, nats *natsutil.NATS, namespace string) (jetstream.KeyValue, error) {
 	timeoutCtx, cancel := context.WithTimeout(ctx, 5*time.Second)

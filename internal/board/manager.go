@@ -103,8 +103,9 @@ func (m *BoardManager) CreateBoard(ctx context.Context, id uuid.UUID) (*Board, e
 	}
 	if len(keys) == 0 {
 		// create initial columns using in-board store
-		for _, c := range m.initialBoardColumns {
+		for i, c := range m.initialBoardColumns {
 			col := models.NewColumn(c, board.ID)
+			col.CreatedAt += int64(i) // alter created_at to keep order
 			err = board.store.Columns.Create(ctx, col)
 			if err != nil {
 				return nil, err
