@@ -30,7 +30,7 @@ jobs:
     - name: build UI
       run: ./scripts/npm-build
 
-    - name: Build
+    - name: build Go
       run: ./scripts/go-build
 
     - name: Test
