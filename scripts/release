@@ -12,6 +12,6 @@ docker build \
     -t $repo:latest . \
     --platform linux/amd64
 
-# echo "pushing to docker-hub..."
-# docker push $repo:$tag
-# docker push $repo:latest
+echo "pushing to docker-hub..."
+docker push $repo:$tag
+docker push $repo:latest

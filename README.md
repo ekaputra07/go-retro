@@ -1,6 +1,6 @@
 # go-retro
 
-[![Build](https://github.com/ekaputra07/go-retro/actions/workflows/go.yaml/badge.svg)](https://github.com/ekaputra07/go-retro/actions/workflows/go.yaml)
+[![Test](https://github.com/ekaputra07/go-retro/actions/workflows/test.yaml/badge.svg)](https://github.com/ekaputra07/go-retro/actions/workflows/test.yaml)
 [![Release](https://github.com/ekaputra07/go-retro/actions/workflows/release.yaml/badge.svg)](https://github.com/ekaputra07/go-retro/actions/workflows/release.yaml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/ekaputra07/go-retro)](https://goreportcard.com/report/github.com/ekaputra07/go-retro)
 

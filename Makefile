@@ -1,22 +1,22 @@
-ui-install:
+npm-install:
 	cd web/ui && npm install
 
-ui-build:
-	cd web/ui && npm run build
-
-ui-dev:
+npm-dev:
 	cd web/ui && npm run dev
 
 go-deps:
 	go mod tidy
 
-setup: go-deps ui-install
+setup: go-deps npm-install
 
 build:
 	./scripts/build
 
+build-ui:
+	./scripts/build-ui
+	
 test:
 	./scripts/test
 
-compose: ui-build
+compose: build-ui
 	docker compose up
