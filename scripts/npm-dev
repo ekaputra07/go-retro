@@ -2,4 +2,4 @@
 
 cd $(dirname $0)/..
 
-cd web/ui && npm run dev
+cd web/ui && npm run dev -- --port=8081

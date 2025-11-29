@@ -6,16 +6,19 @@ interface props {
 
 export default function NameModal(p: props) {
     const inputRef = useRef<HTMLInputElement>(null)
+    const [visible, setVisible] = useState(false)
     const [name, setName] = useState('')
 
     useEffect(() => {
         if (inputRef.current) {
             inputRef.current.focus()
         }
+        // show the modal after 100ms delay
+        setTimeout(() => setVisible(true), 100)
     }, [])
 
     return (
-        <div className="fixed inset-0 flex h-screen w-full items-end md:items-center justify-center z-10">
+        <div className={"fixed inset-0 flex h-screen w-full items-end md:items-center justify-center z-10 " + (visible ? '' : 'invisible')}>
             <div className="absolute inset-0 bg-black opacity-50"></div>
             <div className="md:p-4 md:max-w-lg mx-auto w-full flex-1 relative overflow-hidden">
                 <form onSubmit={e => { e.preventDefault(); p.onJoin(name) }}>

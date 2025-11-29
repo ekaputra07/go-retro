@@ -104,9 +104,8 @@ function App() {
           {notification !== '' && <Alert text={notification} />}
           {timerRunning && timerState && <Timer state={timerState} sender={sendJsonMessage} />}
 
-          {!connect &&
-            <NameModal onJoin={saveName} />
-          }
+          {/* I put a 100ms delay in NameModal so that it won't create a short blip */}
+          {!connect && <NameModal onJoin={saveName} />}
 
           {connect &&
             <div className="py-4 px-6">
@@ -132,6 +131,7 @@ function App() {
             </div>
           }
         </div>
+
         <div className="flex flex-col">
           {timerModalOpen && <TimerModal {...timerModalProps} />}
           {columnModalOpen && <ColumnModal {...columnModalProps} />}
