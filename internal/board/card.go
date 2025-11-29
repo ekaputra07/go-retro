@@ -18,7 +18,7 @@ func (b *Board) createCard(ctx context.Context, msg message) error {
 	if err := msg.uuidVar(&columnID, "column_id"); err != nil {
 		return err
 	}
-	col, err := b.store.Columns.Get(ctx, columnID)
+	col, err := b.store.Columns.Get(ctx, b.ID, columnID)
 	if err != nil {
 		return err
 	}
@@ -31,7 +31,7 @@ func (b *Board) deleteCard(ctx context.Context, msg message) error {
 	if err := msg.uuidVar(&id, "id"); err != nil {
 		return err
 	}
-	return b.store.Cards.Delete(ctx, id)
+	return b.store.Cards.Delete(ctx, b.ID, id)
 }
 
 func (b *Board) updateCard(ctx context.Context, msg message) error {
@@ -43,7 +43,7 @@ func (b *Board) updateCard(ctx context.Context, msg message) error {
 		return err
 	}
 
-	card, err := b.store.Cards.Get(ctx, id)
+	card, err := b.store.Cards.Get(ctx, b.ID, id)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (b *Board) voteCard(ctx context.Context, msg message) error {
 		return err
 	}
 
-	card, err := b.store.Cards.Get(ctx, id)
+	card, err := b.store.Cards.Get(ctx, b.ID, id)
 	if err != nil {
 		return err
 	}

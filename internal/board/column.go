@@ -21,7 +21,7 @@ func (b *Board) deleteColumn(ctx context.Context, msg message) error {
 	if err := msg.uuidVar(&id, "id"); err != nil {
 		return err
 	}
-	return b.store.Columns.Delete(ctx, id)
+	return b.store.Columns.Delete(ctx, b.ID, id)
 }
 
 func (b *Board) updateColumn(ctx context.Context, msg message) error {
@@ -30,7 +30,7 @@ func (b *Board) updateColumn(ctx context.Context, msg message) error {
 		return err
 	}
 
-	col, err := b.store.Columns.Get(ctx, id)
+	col, err := b.store.Columns.Get(ctx, b.ID, id)
 	if err != nil {
 		return err
 	}

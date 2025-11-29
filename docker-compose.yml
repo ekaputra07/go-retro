@@ -5,14 +5,18 @@ services:
       - "4222:4222"
     command: -js
 
+  # NOTE: If you want to test UI (web/assets) locally, make sure to run `make npm-build` first
+  # before running `docker compose up` or use `make compose` shortcut to build the UI and run the app.
   app:
     image: golang:1.24-alpine
     working_dir: /app
     volumes:
       - .:/app
+      # - /tmp/goretro/go:/go # cache go modules on our machine
     ports:
       - "8080:8080"
     environment:
+      GORETRO_VERSION: dev
       GORETRO_NATS_URL: nats://nats:4222
       GORETRO_NATS_CREDS: none
       GORETRO_SESSION_SECRET: dev_Bve8zfg8RvNJHh8jxxEAVj8oe00bE2QY

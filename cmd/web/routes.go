@@ -2,11 +2,12 @@ package main
 
 import (
 	"net/http"
+
+	"github.com/ekaputra07/go-retro/web/ui"
 )
 
 func (a *app) routes() http.Handler {
-	// static file server with cache middleware (max-age: 3600)
-	fileServer := staticCache(http.FileServer(http.Dir(a.config.staticDir)), 3600)
+	fileServer := http.FileServer(ui.EmbeddedUiFS())
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", a.generateBoardID)

@@ -13,7 +13,7 @@ import (
 // BoardManager manages board instances
 type BoardManager struct {
 	logger              *slog.Logger
-	store               *store.GlobalStore
+	store               *store.Store
 	nats                *natsutil.NATS
 	initialBoardColumns []string
 	boards              map[*Board]bool
@@ -73,10 +73,10 @@ func (m *BoardManager) CreateBoard(ctx context.Context, id uuid.UUID) (*Board, e
 	// try to get existing board from DB
 	b, err := m.store.Boards.Get(ctx, id)
 
-	if err == nil {
+	if b != nil && err == nil {
 		// exist
 		m.logger.Info("board record exist", "id", id)
-		board, err = newBoard(ctx, m, b)
+		board, err = newBoard(m, b)
 		if err != nil {
 			return nil, err
 		}
@@ -90,21 +90,22 @@ func (m *BoardManager) CreateBoard(ctx context.Context, id uuid.UUID) (*Board, e
 		}
 		m.logger.Info("board record created", "id", id)
 		// board instance from board model
-		board, err = newBoard(ctx, m, &nb)
+		board, err = newBoard(m, &nb)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// if no columns records, create initial columns
-	columns, err := board.store.Columns.List(ctx)
+	keys, err := board.store.Columns.ListKeys(ctx, board.ID, 1)
 	if err != nil {
 		return nil, err
 	}
-	if len(columns) == 0 {
+	if len(keys) == 0 {
 		// create initial columns using in-board store
-		for _, c := range m.initialBoardColumns {
+		for i, c := range m.initialBoardColumns {
 			col := models.NewColumn(c, board.ID)
+			col.CreatedAt += int64(i) // alter created_at to keep order
 			err = board.store.Columns.Create(ctx, col)
 			if err != nil {
 				return nil, err
@@ -147,7 +148,7 @@ func (m *BoardManager) StartBoardProcess(ctx context.Context, id uuid.UUID) erro
 }
 
 // NewBoardManager creates a new board manager instance
-func NewBoardManager(logger *slog.Logger, nats *natsutil.NATS, store *store.GlobalStore, initialcolumns []string) *BoardManager {
+func NewBoardManager(logger *slog.Logger, nats *natsutil.NATS, store *store.Store, initialcolumns []string) *BoardManager {
 	return &BoardManager{
 		logger:              logger,
 		nats:                nats,

@@ -86,13 +86,33 @@ func (c *Client) read() {
 // write writes message to the socket
 func (c *Client) write(ctx context.Context) {
 	// subscribe for messages
-	messageSub, _ := c.nats.Conn.ChanSubscribe(broadcastMessageTopic(c.BoardID), c.messageCh)
+	messageSub, err := c.nats.Conn.ChanSubscribe(broadcastMessageTopic(c.BoardID), c.messageCh)
+	if err != nil {
+		c.logger.Error("client subscribe error -->", "id", c.ID, "err", err.Error())
+		return
+	}
+
+	// watch for columns and cards changes
+	kv, err := c.nats.JS.KeyValue(ctx, "goretro")
+	if err != nil {
+		c.logger.Error("client kv error -->", "id", c.ID, "err", err.Error())
+		return
+	}
+	w, err := kv.WatchFiltered(ctx, []string{
+		fmt.Sprintf("boards.%s.columns.*", c.BoardID),
+		fmt.Sprintf("boards.%s.cards.*", c.BoardID),
+	})
+	if err != nil {
+		c.logger.Error("client watch error -->", "id", c.ID, "err", err.Error())
+		return
+	}
 
 	// pinger
 	ticker := time.NewTicker(pingPeriod)
 
 	defer func() {
 		messageSub.Unsubscribe()
+		w.Stop()
 		close(c.messageCh)
 		ticker.Stop()
 		c.conn.Close()
@@ -100,6 +120,17 @@ func (c *Client) write(ctx context.Context) {
 
 	for {
 		select {
+		case kve := <-w.Updates():
+			if kve != nil {
+				s, err := newStream(kve.Key(), kve.Operation(), kve.Value())
+				if s != nil && err == nil {
+					c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+					if err := c.conn.WriteJSON(s); err != nil {
+						c.logger.Error("client message error -->", "id", c.ID, "err", err.Error())
+						return
+					}
+				}
+			}
 		case <-ticker.C:
 			c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 			if err := c.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
@@ -152,6 +183,6 @@ func NewClient(conn *websocket.Conn,
 		logger:    logger,
 		conn:      conn,
 		nats:      nats_,
-		messageCh: make(chan *nats.Msg, 1),
+		messageCh: make(chan *nats.Msg, 256),
 	}
 }

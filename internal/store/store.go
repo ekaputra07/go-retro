@@ -14,36 +14,33 @@ type UserRepo interface {
 }
 
 type BoardRepo interface {
-	List(ctx context.Context) ([]models.Board, error)
+	List(ctx context.Context, limit int) ([]models.Board, error)
 	Create(ctx context.Context, board models.Board) error
 	Get(ctx context.Context, id uuid.UUID) (*models.Board, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type ColumnRepo interface {
-	List(ctx context.Context) ([]models.Column, error)
+	ListKeys(ctx context.Context, boardID uuid.UUID, limit int) ([]string, error)
+	List(ctx context.Context, boardID uuid.UUID, limit int) ([]models.Column, error)
 	Create(ctx context.Context, column models.Column) error
-	Get(ctx context.Context, id uuid.UUID) (*models.Column, error)
+	Get(ctx context.Context, boardID uuid.UUID, id uuid.UUID) (*models.Column, error)
 	Update(ctx context.Context, column models.Column) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, boardID uuid.UUID, id uuid.UUID) error
 }
 
 type CardRepo interface {
-	List(ctx context.Context) ([]models.Card, error)
+	List(ctx context.Context, boardID uuid.UUID, limit int) ([]models.Card, error)
 	Create(ctx context.Context, card models.Card) error
-	Get(ctx context.Context, id uuid.UUID) (*models.Card, error)
+	Get(ctx context.Context, boardID uuid.UUID, id uuid.UUID) (*models.Card, error)
 	Update(ctx context.Context, card models.Card) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, boardID uuid.UUID, id uuid.UUID) error
 }
 
-// GlobalStore stores globally available records e.g Users and Boards
-type GlobalStore struct {
-	Users  UserRepo
-	Boards BoardRepo
-}
-
-// BoardStore stores board scopped records e.g Columns and Cards
-type BoardStore struct {
+// Store stores globally available records e.g Users and Boards
+type Store struct {
+	Users   UserRepo
+	Boards  BoardRepo
 	Columns ColumnRepo
 	Cards   CardRepo
 }

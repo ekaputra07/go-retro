@@ -48,14 +48,20 @@ func (t *timer) updateDisplay() {
 }
 
 func (t *timer) run(ctx context.Context) {
+	tick := time.NewTicker(1 * time.Second)
+
+	defer func() {
+		t.logger.Info("timer stopped")
+		tick.Stop()
+	}()
+
 	t.logger.Info("timer started")
-	tick := time.Tick(1 * time.Second)
 	for {
 		select {
 		case <-ctx.Done():
-			t.logger.Info("timer destroyed")
+			t.logger.Info("timer context done")
 			return
-		case <-tick:
+		case <-tick.C:
 			if t.Status == timerStatusRunning {
 				t.elapsed += 1 * time.Second
 
@@ -114,7 +120,7 @@ func (t *timer) run(ctx context.Context) {
 
 func newTimer(logger *slog.Logger) *timer {
 	cmd := make(chan timerCmd)
-	state := make(chan *timer)
+	state := make(chan *timer, 1)
 
 	return &timer{
 		Status:  timerStatusStopped,

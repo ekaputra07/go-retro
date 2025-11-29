@@ -92,7 +92,11 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	data := newTemplateData(a.config)
+	data, err := newTemplateData(a.config)
+	if err != nil {
+		a.serverError(w, r, fmt.Errorf("error newTemplateData: %s", err.Error()))
+		return
+	}
 	a.render(w, r, http.StatusOK, data)
 }
 
