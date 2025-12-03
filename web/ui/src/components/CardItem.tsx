@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useRef, useEffect } from 'react'
 import { useDrag, type DragSourceMonitor } from 'react-dnd'
 import type { Card, Column } from '../types'
 import { CardModal, useCardModal } from './CardModal'
@@ -27,7 +27,13 @@ export default function CardItem(p: props) {
             data: { ...p.card, vote: delta }
         })
     }
-    dragConnector(dragableRef)
+
+    // Attach drag ref using effect per React DnD guidelines
+    useEffect(() => {
+        if (dragableRef.current) {
+            dragConnector(dragableRef)
+        }
+    }, [dragConnector, dragableRef])
 
     return (
         <div ref={dragableRef}

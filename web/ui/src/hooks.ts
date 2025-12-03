@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { Client, UserConnectionsCount, User, Column, Card, ChangeOp, ChangeableList, TimerState } from './types'
+import type { Client, UserConnectionsCount, User, Column, Card, ChangeOp, TimerState, WSMessage } from './types'
 
 export interface BoardState {
     currentUser: User | null
@@ -12,34 +12,43 @@ export interface BoardState {
     timerState: TimerState | null
 }
 
-function applyChangeOperation(list: ChangeableList, change: ChangeOp): ChangeableList {
+function applyChangeOperation<T>(list: T[], change: ChangeOp<T>): T[] {
+    const obj: T = change.obj as T
+
     // we need to return a new list reference to trigger re-render
     const newList = [...list]
-    const idx = newList.findIndex(c => c.id === change.id)
+    const idx = newList.findIndex((item: T) => (item as { id: string }).id === change.id)
     if (idx >= 0) {
         if (change.op === "put") {
-            newList[idx] = change.obj
+            newList[idx] = obj
         } else if (change.op === "del") {
             newList.splice(idx, 1)
         }
-        return newList.sort((a, b) => (a.created_at!) - (b.created_at!))
+        return newList.sort((a: T, b: T) => ((a as { created_at: number }).created_at) - ((b as { created_at: number }).created_at))
     } else if (idx === -1 && change.op === "put") {
-        newList.push(change.obj)
-        return newList.sort((a, b) => (a.created_at!) - (b.created_at!))
+        newList.push(obj)
+        return newList.sort((a: T, b: T) => ((a as { created_at: number }).created_at) - ((b as { created_at: number }).created_at))
     }
     return newList
 }
+
+let currentUser: User | null = null
+let clients: Client[] = []
+let columns: Column[] = []
+let cards: Card[] = []
+let timerState: TimerState | null = null
 
 export function useBoardState(
     lastMessage: MessageEvent | null,
     onNotification?: (msg: string) => void,
 ): BoardState {
-    const [currentUser, setCurrentUser] = useState<User | null>(null)
-    const [clients, setClients] = useState<Client[]>([])
-    const [columns, setColumns] = useState<Column[]>([])
-    const [cards, setCards] = useState<Card[]>([])
+
+    // const [currentUser, setCurrentUser] = useState<User | null>(null)
+    // const [clients, setClients] = useState<Client[]>([])
+    // const [columns, setColumns] = useState<Column[]>([])
+    // const [cards, setCards] = useState<Card[]>([])
     const [notification, setNotification] = useState<string>('')
-    const [timerState, setTimerState] = useState<TimerState | null>(null)
+    // const [timerState, setTimerState] = useState<TimerState | null>(null)
 
     const connectionsCount: UserConnectionsCount = clients.reduce(
         (acc: UserConnectionsCount, c: Client) => {
@@ -57,47 +66,45 @@ export function useBoardState(
         .map(c => c.user)
 
     const handleEvent = (event: MessageEvent): void => {
-        const e: any = JSON.parse(event.data)
+        const e: WSMessage = JSON.parse(event.data)
         switch (e.type) {
             case "me":
-                setCurrentUser(e.user)
+                currentUser = e.user
                 break
 
             case "columns":
-                setColumns(applyChangeOperation(columns, e))
+                columns = applyChangeOperation(columns, e as ChangeOp<Column>)
                 break
 
             case "cards":
-                setCards(applyChangeOperation(cards, e))
+                cards = applyChangeOperation(cards, e as ChangeOp<Card>)
                 break
 
-            case "board.users":
-                const sortedClients: Client[] = e.data.sort(
-                    (a: Client, b: Client) => a.joined_at - b.joined_at,
-                )
-                setClients(sortedClients)
+            case "clients":
+                clients = applyChangeOperation(clients, e as ChangeOp<Client>)
                 break
 
             case "board.notification":
                 // don't show notification to those who triggers it
                 if (currentUser && e.user) {
                     if (currentUser.id != e.user.id) {
-                        setNotification(e.data)
+                        setNotification(e.data as string)
                         if (onNotification) {
-                            onNotification(e.data)
+                            onNotification(e.data as string)
                         }
                     }
                 }
                 break
 
             case "timer.state":
-                const state: TimerState = e.data
-                setTimerState(state)
+                {
+                    timerState = e.data as TimerState
+                    // if (timerState.status == 'done') {
+                    //     setTimeout(() => {
+                    //         timerState = { ...timerState, status: 'stopped' }
+                    //     }, 5000)
 
-                if (state.status == 'done') {
-                    setTimeout(() => {
-                        setTimerState({ ...state, status: 'stopped' })
-                    }, 5000)
+                    // }
                 }
                 break
 
@@ -105,12 +112,16 @@ export function useBoardState(
                 break
         }
     }
+    if (lastMessage) {
+        handleEvent(lastMessage)
+    }
 
-    useEffect(() => {
-        if (lastMessage !== null) {
-            handleEvent(lastMessage)
-        }
-    }, [lastMessage])
+    // useEffect(() => {
+    //     if (lastMessage !== null) {
+    //         handleEvent(lastMessage)
+    //     }
+    //     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // }, [lastMessage])
 
     return {
         currentUser,
@@ -123,6 +134,7 @@ export function useBoardState(
         timerState,
     }
 }
+
 export function useNotification(timeout: number = 3000): [string, (msg: string) => void] {
     const [notification, setNotification] = useState<string>('')
 
@@ -134,6 +146,6 @@ export function useNotification(timeout: number = 3000): [string, (msg: string) 
 
             return () => clearTimeout(timeoutId)
         }
-    }, [notification])
+    }, [notification, timeout])
     return [notification, setNotification]
 }

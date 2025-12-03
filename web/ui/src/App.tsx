@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import useWebSocket from 'react-use-websocket'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
@@ -42,12 +42,27 @@ const gridColsClass = (length: number): string => {
   }[length] || 'grid-cols-4'
 }
 
+// Build WebSocket URL helper
+const buildWebSocketUrl = (userName: string): string => {
+  const host = import.meta.env.DEV ? 'localhost:8080' : window.location.host
+  const protocol = window.location.protocol
+  const pathname = window.location.pathname
+  const wsProtocol = protocol === 'https:' ? 'wss:' : 'ws:'
+  return `${wsProtocol}//${host}${pathname}/ws?u=${userName}`
+}
+
 function App() {
-  // required to be set
   const nameKey = 'GR_USERNAME'
-  const [name, setName] = useState<string>('')
-  const [socketUrl, setSocketUrl] = useState<string>('')
-  const [connect, setConnect] = useState<boolean>(false)
+
+  // Lazy initialization: read from localStorage only on first render
+  const [name, setName] = useState<string>(() => {
+    return localStorage.getItem(nameKey) || ''
+  })
+
+  // Compute WebSocket URL and connection state from name
+  const socketUrl = useMemo(() => {
+    return name ? buildWebSocketUrl(name) : ''
+  }, [name])
 
   // webhook connection
   const { lastMessage, sendJsonMessage } = useWebSocket(socketUrl, {
@@ -58,11 +73,11 @@ function App() {
     onClose: () => console.log('WebSocket connection closed.'),
     onError: (event) => console.error('WebSocket error observed:', event),
     shouldReconnect: () => true,
-  }, connect)
+  }, socketUrl !== '')
 
   // board state
   const [notification, setNotification] = useNotification()
-  const { users, userConnectionsCount, columns, cards, timerRunning, timerState } = useBoardState(lastMessage, setNotification)
+  const { currentUser, users, userConnectionsCount, columns, cards, timerRunning, timerState } = useBoardState(lastMessage, setNotification)
   const [standupOpen, standupSetOpen, standupProps] = useStandup(users, setNotification)
   const [timerModalOpen, timerModalSetOpen, timerModalProps] = useTimerModal(sendJsonMessage)
   const [columnModalOpen, columnModalSetOpen, columnModalProps] = useColumnModal(sendJsonMessage)
@@ -72,42 +87,18 @@ function App() {
     setName(name)
   }
 
-  // read name from local storage
-  useEffect(() => {
-    const name = localStorage.getItem(nameKey) || ''
-    if (name !== '') {
-      setName(name)
-    }
-  }, [])
-
-  // check for connection ready
-  useEffect(() => {
-    if (name == '') return
-
-    let host = window.location.host
-    if (import.meta.env.DEV) {
-      host = import.meta.env.VITE_BACKEND_HOST
-    }
-    const protocol = window.location.protocol
-    const pathname = window.location.pathname
-
-    const wsProtocol: string = (protocol === 'https:') ? 'wss:' : 'ws:'
-    setSocketUrl(`${wsProtocol}//${host}${pathname}/ws?u=${name}`)
-    setConnect(true)
-  }, [name])
-
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="flex flex-col min-h-screen">
         <div className="flex-1">
-
+          {currentUser && <div className="text-sm text-gray-500">Logged in as {currentUser.name}</div>}
           {notification !== '' && <Alert text={notification} />}
           {timerRunning && timerState && <Timer state={timerState} sender={sendJsonMessage} />}
 
           {/* I put a 100ms delay in NameModal so that it won't create a short blip */}
-          {!connect && <NameModal onJoin={saveName} />}
+          {socketUrl === '' && <NameModal onJoin={saveName} />}
 
-          {connect &&
+          {socketUrl !== '' &&
             <div className="py-4 px-6">
               {/* kanban board */}
               <div className="flex justify-items-start mt-4">

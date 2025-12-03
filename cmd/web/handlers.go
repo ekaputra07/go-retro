@@ -140,6 +140,10 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	// create client and add to board
-	client := board.NewClient(conn, user, a.logger, a.nats, uuid.MustParse(boardID))
+	client, err := board.NewClient(ctx, conn, user, a.logger, a.store, a.nats, uuid.MustParse(boardID))
+	if err != nil {
+		a.serverError(w, r, fmt.Errorf("error board.NewClient: %s", err.Error()))
+		return
+	}
 	client.Start()
 }

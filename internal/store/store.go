@@ -13,6 +13,10 @@ type UserRepo interface {
 	Update(ctx context.Context, user models.User) error
 }
 
+type ClientRepo interface {
+	Create(ctx context.Context, client models.Client) error
+	Delete(ctx context.Context, boardID uuid.UUID, id uuid.UUID) error
+}
 type BoardRepo interface {
 	List(ctx context.Context, limit int) ([]models.Board, error)
 	Create(ctx context.Context, board models.Board) error
@@ -43,4 +47,5 @@ type Store struct {
 	Boards  BoardRepo
 	Columns ColumnRepo
 	Cards   CardRepo
+	Clients ClientRepo
 }

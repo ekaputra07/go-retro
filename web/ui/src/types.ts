@@ -13,7 +13,7 @@ export interface User {
 export interface Client {
     id: string
     user: User
-    joined_at: number
+    created_at: number
 }
 
 export interface UserConnectionsCount {
@@ -39,10 +39,17 @@ export interface TimerState {
     display: string
 }
 
-export interface ChangeOp {
+export interface ChangeOp<T> {
+    type: "clients" | "columns" | "cards"
     op: "put" | "del"
     id: string
-    obj?: any
+    obj?: T
 }
 
-export type ChangeableList = Column[] | Card[]
+export interface WSMessageBasic {
+    type: string
+    data: string | TimerState | User
+    user: User
+}
+
+export type WSMessage = WSMessageBasic | ChangeOp<Client> | ChangeOp<Column> | ChangeOp<Card>

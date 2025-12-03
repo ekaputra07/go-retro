@@ -9,6 +9,7 @@ import (
 
 	"github.com/ekaputra07/go-retro/internal/models"
 	"github.com/ekaputra07/go-retro/internal/natsutil"
+	"github.com/ekaputra07/go-retro/internal/store"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/nats-io/nats.go"
@@ -30,15 +31,14 @@ const (
 
 // Client represents websocket connection between client (browser) that join a board
 type Client struct {
-	ID       uuid.UUID    `json:"id"`
-	BoardID  uuid.UUID    `json:"board_id"`
-	User     *models.User `json:"user"`
-	JoinedAt int64        `json:"joined_at"`
+	*models.Client
 
-	logger    *slog.Logger
-	conn      *websocket.Conn
-	nats      *natsutil.NATS
-	messageCh chan *nats.Msg
+	logger     *slog.Logger
+	conn       *websocket.Conn
+	nats       *natsutil.NATS
+	store      *store.Store
+	msgHandler *messageHandler
+	messageCh  chan *nats.Msg
 }
 
 func (c *Client) publish(topic string, msg any) {
@@ -72,13 +72,16 @@ func (c *Client) read() {
 		}
 
 		msg.User = *c.User
+		msg.BoardID = c.BoardID
 
-		// handle `me` message
-		if msg.Type == messageTypeMe {
+		switch msg.Type {
+		case messageTypeMe:
 			data, _ := json.Marshal(msg)
 			c.messageCh <- &nats.Msg{Data: data}
-		} else {
+		case messageTypeTimerCmd:
 			c.publish(inboundMessageTopic(c.BoardID), msg)
+		default:
+			c.msgHandler.handle(context.Background(), msg)
 		}
 	}
 }
@@ -92,13 +95,14 @@ func (c *Client) write(ctx context.Context) {
 		return
 	}
 
-	// watch for columns and cards changes
+	// watch for clients, columns and cards changes
 	kv, err := c.nats.JS.KeyValue(ctx, "goretro")
 	if err != nil {
 		c.logger.Error("client kv error -->", "id", c.ID, "err", err.Error())
 		return
 	}
 	w, err := kv.WatchFiltered(ctx, []string{
+		fmt.Sprintf("boards.%s.clients.*", c.BoardID),
 		fmt.Sprintf("boards.%s.columns.*", c.BoardID),
 		fmt.Sprintf("boards.%s.cards.*", c.BoardID),
 	})
@@ -157,10 +161,12 @@ func (c *Client) Start() {
 	// start writer
 	go c.write(ctx)
 
-	// client is now ready, notify board
-	c.publish(clientJoinTopic(c.BoardID), c)
 	defer func() {
-		c.publish(clientLeaveTopic(c.BoardID), c)
+		// delete client on leave
+		err := c.store.Clients.Delete(ctx, c.BoardID, c.ID)
+		if err != nil {
+			c.logger.Error("error deleting client record", "board", c.BoardID, "id", c.ID)
+		}
 	}()
 	c.logger.Info("client started", "id", c.ID)
 
@@ -169,20 +175,30 @@ func (c *Client) Start() {
 }
 
 // NewClient creates a new client instance
-func NewClient(conn *websocket.Conn,
+func NewClient(
+	ctx context.Context,
+	conn *websocket.Conn,
 	user *models.User,
 	logger *slog.Logger,
+	store *store.Store,
 	nats_ *natsutil.NATS,
 	boardID uuid.UUID,
-) *Client {
-	return &Client{
-		ID:        uuid.New(),
-		User:      user,
-		JoinedAt:  time.Now().Unix(),
-		BoardID:   boardID,
-		logger:    logger,
-		conn:      conn,
-		nats:      nats_,
-		messageCh: make(chan *nats.Msg, 256),
+) (*Client, error) {
+	// create client record
+	model := models.NewClient(user, boardID)
+	err := store.Clients.Create(ctx, model)
+	if err != nil {
+		return nil, err
+
 	}
+	// create client process instance
+	return &Client{
+		Client:     &model,
+		logger:     logger,
+		conn:       conn,
+		nats:       nats_,
+		store:      store,
+		msgHandler: newMessageHandler(store),
+		messageCh:  make(chan *nats.Msg, 256),
+	}, nil
 }

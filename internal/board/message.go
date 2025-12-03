@@ -35,6 +35,12 @@ func newStream(key string, op jetstream.KeyValueOp, value []byte) (*stream, erro
 	}
 
 	switch s.Type {
+	case "clients":
+		var c models.Client
+		if err := json.Unmarshal(value, &c); err != nil {
+			return nil, err
+		}
+		s.Object = c
 	case "columns":
 		var c models.Column
 		if err := json.Unmarshal(value, &c); err != nil {
@@ -74,9 +80,10 @@ const (
 
 // message represents a message that can be sent to and from the client
 type message struct {
-	Type messageType `json:"type"`
-	Data any         `json:"data"`
-	User models.User `json:"user"`
+	BoardID uuid.UUID   `json:"board_id"`
+	Type    messageType `json:"type"`
+	Data    any         `json:"data"`
+	User    models.User `json:"user"`
 }
 
 // dataGet return value(any) from Data by given key
