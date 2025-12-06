@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
-	"time"
 
 	"github.com/ekaputra07/go-retro/internal/board"
 	"github.com/ekaputra07/go-retro/internal/models"
@@ -79,17 +78,18 @@ func (a *app) board(w http.ResponseWriter, r *http.Request) {
 		a.logger.Info("new user created", "id", user.ID)
 	}
 
-	// 2. check whether this boards alive somewhere (this node or other node)
-	// if not, start board process in current node
+	// 2. check if board record exist, if not then create
 	boardID := uuid.MustParse(r.PathValue("board"))
-	_, err := a.nats.Conn.Request(fmt.Sprintf("board.%s.status", boardID), nil, time.Second)
+	_, err := a.manager.GetOrCreateBoard(ctx, boardID)
 	if err != nil {
-		a.logger.Info("board not running, starting...", "id", boardID)
-		err := a.manager.StartBoardProcess(ctx, boardID)
-		if err != nil {
-			a.serverError(w, r, fmt.Errorf("error a.manager.StartBoardProcess: %s", err.Error()))
-			return
-		}
+		a.serverError(w, r, fmt.Errorf("error a.manager.GetOrCreateBoard: %s", err.Error()))
+		return
+	}
+
+	// 3. get board timer state (called just to start the timer in case not yet started)
+	isNew := a.manager.StartTimer(boardID)
+	if isNew {
+		a.logger.Info("new timer started", "id", boardID)
 	}
 
 	data, err := newTemplateData(a.config)
@@ -139,7 +139,7 @@ func (a *app) websocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	// create client and add to board
+	// create client and start
 	client, err := board.NewClient(ctx, conn, user, a.logger, a.store, a.nats, uuid.MustParse(boardID))
 	if err != nil {
 		a.serverError(w, r, fmt.Errorf("error board.NewClient: %s", err.Error()))

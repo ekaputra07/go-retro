@@ -76,8 +76,8 @@ function App() {
   }, socketUrl !== '')
 
   // board state
-  const [notification, setNotification] = useNotification()
-  const { currentUser, users, userConnectionsCount, columns, cards, timerRunning, timerState } = useBoardState(lastMessage, setNotification)
+  const [notification, setNotification] = useNotification(2000)
+  const { users, userConnectionsCount, columns, cards, timerRunning, timerState } = useBoardState(lastMessage, setNotification)
   const [standupOpen, standupSetOpen, standupProps] = useStandup(users, setNotification)
   const [timerModalOpen, timerModalSetOpen, timerModalProps] = useTimerModal(sendJsonMessage)
   const [columnModalOpen, columnModalSetOpen, columnModalProps] = useColumnModal(sendJsonMessage)
@@ -91,7 +91,6 @@ function App() {
     <DndProvider backend={HTML5Backend}>
       <div className="flex flex-col min-h-screen">
         <div className="flex-1">
-          {currentUser && <div className="text-sm text-gray-500">Logged in as {currentUser.name}</div>}
           {notification !== '' && <Alert text={notification} />}
           {timerRunning && timerState && <Timer state={timerState} sender={sendJsonMessage} />}
 

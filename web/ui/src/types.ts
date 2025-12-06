@@ -46,10 +46,15 @@ export interface ChangeOp<T> {
     obj?: T
 }
 
-export interface WSMessageBasic {
+export interface Message {
     type: string
     data: string | TimerState | User
     user: User
 }
 
-export type WSMessage = WSMessageBasic | ChangeOp<Client> | ChangeOp<Column> | ChangeOp<Card>
+export interface MessageList {
+    type: string
+    messages: Message[]
+}
+
+export type WSMessage = Message | MessageList | ChangeOp<Client> | ChangeOp<Column> | ChangeOp<Card>

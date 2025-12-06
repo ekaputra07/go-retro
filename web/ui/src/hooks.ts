@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import type { Client, UserConnectionsCount, User, Column, Card, ChangeOp, TimerState, WSMessage } from './types'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import type { Client, UserConnectionsCount, User, Column, Card, ChangeOp, TimerState, Message, MessageList, WSMessage } from './types'
 
 export interface BoardState {
     currentUser: User | null
@@ -7,7 +7,6 @@ export interface BoardState {
     userConnectionsCount: UserConnectionsCount
     columns: Column[]
     cards: Card[]
-    notification: string
     timerRunning: boolean
     timerState: TimerState | null
 }
@@ -32,65 +31,41 @@ function applyChangeOperation<T>(list: T[], change: ChangeOp<T>): T[] {
     return newList
 }
 
-let currentUser: User | null = null
-let clients: Client[] = []
-let columns: Column[] = []
-let cards: Card[] = []
-let timerState: TimerState | null = null
-
 export function useBoardState(
     lastMessage: MessageEvent | null,
     onNotification?: (msg: string) => void,
 ): BoardState {
+    const [currentUser, setCurrentUser] = useState<User | null>(null)
+    const [clients, setClients] = useState<Client[]>([])
+    const [columns, setColumns] = useState<Column[]>([])
+    const [cards, setCards] = useState<Card[]>([])
+    const [timerState, setTimerState] = useState<TimerState | null>(null)
 
-    // const [currentUser, setCurrentUser] = useState<User | null>(null)
-    // const [clients, setClients] = useState<Client[]>([])
-    // const [columns, setColumns] = useState<Column[]>([])
-    // const [cards, setCards] = useState<Card[]>([])
-    const [notification, setNotification] = useState<string>('')
-    // const [timerState, setTimerState] = useState<TimerState | null>(null)
-
-    const connectionsCount: UserConnectionsCount = clients.reduce(
-        (acc: UserConnectionsCount, c: Client) => {
-            if (!acc[c.user.id]) acc[c.user.id] = 0
-            acc[c.user.id]++
-            return acc
-        },
-        {},
-    )
-    const uniqueUserIds: string[] = [
-        ...new Set(clients.map((c: Client) => c.user.id)),
-    ]
-    const users: User[] = uniqueUserIds
-        .map((id) => clients.find((c) => c.user.id === id) as Client)
-        .map(c => c.user)
-
-    const handleEvent = (event: MessageEvent): void => {
-        const e: WSMessage = JSON.parse(event.data)
-        switch (e.type) {
+    const handleMsg = useCallback((m: WSMessage) => {
+        switch (m.type) {
             case "me":
-                currentUser = e.user
+                setCurrentUser((m as Message).user)
                 break
 
             case "columns":
-                columns = applyChangeOperation(columns, e as ChangeOp<Column>)
+                setColumns(applyChangeOperation(columns, m as ChangeOp<Column>))
                 break
 
             case "cards":
-                cards = applyChangeOperation(cards, e as ChangeOp<Card>)
+                setCards(applyChangeOperation(cards, m as ChangeOp<Card>))
                 break
 
             case "clients":
-                clients = applyChangeOperation(clients, e as ChangeOp<Client>)
+                setClients(applyChangeOperation(clients, m as ChangeOp<Client>))
                 break
 
             case "board.notification":
+                const msg = m as Message
                 // don't show notification to those who triggers it
-                if (currentUser && e.user) {
-                    if (currentUser.id != e.user.id) {
-                        setNotification(e.data as string)
+                if (currentUser && msg.user) {
+                    if (currentUser.id != msg.user.id) {
                         if (onNotification) {
-                            onNotification(e.data as string)
+                            onNotification(msg.data as string)
                         }
                     }
                 }
@@ -98,30 +73,56 @@ export function useBoardState(
 
             case "timer.state":
                 {
-                    timerState = e.data as TimerState
-                    // if (timerState.status == 'done') {
-                    //     setTimeout(() => {
-                    //         timerState = { ...timerState, status: 'stopped' }
-                    //     }, 5000)
-
-                    // }
+                    const msg = m as Message
+                    const ts = msg.data as TimerState
+                    setTimerState(ts)
+                    if (ts.status == 'done') {
+                        setTimeout(() => {
+                            setTimerState({ ...timerState!, status: 'stopped' })
+                        }, 5000)
+                    }
                 }
                 break
 
             default:
                 break
         }
-    }
-    if (lastMessage) {
-        handleEvent(lastMessage)
-    }
+    }, [lastMessage])
 
-    // useEffect(() => {
-    //     if (lastMessage !== null) {
-    //         handleEvent(lastMessage)
-    //     }
-    //     // eslint-disable-next-line react-hooks/exhaustive-deps
-    // }, [lastMessage])
+    useEffect(() => {
+        if (lastMessage !== null) {
+            const message: WSMessage = JSON.parse(lastMessage.data)
+            // if message list, unpack and handle one-by-one
+            if (message.type === 'messages') {
+                const messages = (message as MessageList).messages
+                for (let i = 0; i < messages.length; i++) {
+                    handleMsg(messages[i])
+                }
+            } else {
+                handleMsg(message)
+            }
+        }
+    }, [lastMessage])
+
+    const connectionsCount: UserConnectionsCount = useMemo(() => {
+        return clients.reduce(
+            (acc: UserConnectionsCount, c: Client) => {
+                if (!acc[c.user.id]) acc[c.user.id] = 0
+                acc[c.user.id]++
+                return acc
+            },
+            {},
+        )
+    }, [clients])
+
+    const users: User[] = useMemo(() => {
+        const uniqueUserIds: string[] = [
+            ...new Set(clients.map((c: Client) => c.user.id)),
+        ]
+        return uniqueUserIds
+            .map((id) => clients.find((c) => c.user.id === id) as Client)
+            .map(c => c.user)
+    }, [clients])
 
     return {
         currentUser,
@@ -129,23 +130,30 @@ export function useBoardState(
         userConnectionsCount: connectionsCount,
         columns,
         cards,
-        notification,
         timerRunning: timerState !== null && timerState.status !== 'stopped',
         timerState,
     }
 }
 
+let timeoutId: number | null
 export function useNotification(timeout: number = 3000): [string, (msg: string) => void] {
     const [notification, setNotification] = useState<string>('')
 
-    useEffect(() => {
-        if (notification !== '') {
-            const timeoutId = setTimeout(() => {
-                setNotification('')
-            }, timeout)
+    // only set message when its not empty and not the same as previous one
+    const set = (msg: string) => {
+        const trimmed = msg.trim()
+        if (trimmed === '' || trimmed === notification) return
 
-            return () => clearTimeout(timeoutId)
+        setNotification(trimmed)
+
+        // clear timeout before setting new one
+        if (timeoutId) {
+            clearTimeout(timeoutId)
         }
-    }, [notification, timeout])
-    return [notification, setNotification]
+        timeoutId = setTimeout(() => {
+            setNotification('')
+        }, timeout)
+    }
+
+    return [notification, set]
 }

@@ -41,6 +41,7 @@ type Client struct {
 	messageCh  chan *nats.Msg
 }
 
+// publish publish message to subscribers via nats
 func (c *Client) publish(topic string, msg any) {
 	go func() {
 		data, err := json.Marshal(msg)
@@ -51,6 +52,21 @@ func (c *Client) publish(topic string, msg any) {
 			c.logger.Error(fmt.Sprintf("failed publishing message: %s", err.Error()))
 		}
 	}()
+}
+
+// checkTimerStateMessage check for latest state of active timer.
+func (c *Client) checkTimerStateMessage() *message {
+	msg, err := queryTimerStatus(c.nats.Conn, c.BoardID)
+	if err != nil {
+		c.logger.Error("error requesting timer status message", "err", err.Error())
+		return nil
+	}
+	var m message
+	if err = json.Unmarshal(msg.Data, &m); err != nil {
+		c.logger.Error("error decoding timer status message", "err", err.Error())
+		return nil
+	}
+	return &m
 }
 
 // read reads message from socket
@@ -76,10 +92,23 @@ func (c *Client) read() {
 
 		switch msg.Type {
 		case messageTypeMe:
-			data, _ := json.Marshal(msg)
+			msgs := []message{msg}
+
+			// during ME inqury, check timer state and includes in messages if any.
+			// returning timer state to user is necessary so that new joined user could
+			// see the timer UI even when it's currently paused since paused timer don't emit events.
+			if timerStateMsg := c.checkTimerStateMessage(); timerStateMsg != nil {
+				msgs = append(msgs, *timerStateMsg)
+			}
+
+			ml := newMessageList(c.BoardID, msgs...)
+			data, err := ml.encode()
+			if err != nil {
+				c.logger.Error("failed to encode messageList during ME", "err", err.Error())
+			}
 			c.messageCh <- &nats.Msg{Data: data}
 		case messageTypeTimerCmd:
-			c.publish(inboundMessageTopic(c.BoardID), msg)
+			c.publish(timerCmdTopic(c.BoardID), msg)
 		default:
 			c.msgHandler.handle(context.Background(), msg)
 		}
