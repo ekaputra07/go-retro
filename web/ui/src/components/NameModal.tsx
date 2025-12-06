@@ -10,11 +10,16 @@ export default function NameModal(p: props) {
     const [name, setName] = useState('')
 
     useEffect(() => {
-        if (inputRef.current) {
+        if (visible && inputRef.current) {
             inputRef.current.focus()
         }
+    }, [visible])
+
+    useEffect(() => {
         // show the modal after 100ms delay
-        setTimeout(() => setVisible(true), 100)
+        setTimeout(() => {
+            setVisible(true)
+        }, 100)
     }, [])
 
     return (

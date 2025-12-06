@@ -36,19 +36,19 @@ func main() {
 	session.Options = &sessions.Options{Secure: c.secure}
 
 	// NATS
-	natscon := natsutil.Connect(c.natsUrl, c.natsCreds)
-	defer natscon.Close()
+	nc := natsutil.Connect(c.natsUrl, c.natsCreds)
+	defer nc.Close()
 
 	// database
 	ctx := context.Background()
-	db, err := natstore.NewStore(ctx, natscon, "goretro")
+	db, err := natstore.NewStore(ctx, nc, "goretro")
 	if err != nil {
 		logger.Error(err.Error())
 		os.Exit(1)
 	}
 
 	// board manager
-	manager := board.NewBoardManager(logger, natscon, db, strings.Split(c.initialColumns, ","))
+	manager := board.NewBoardManager(logger, nc, db, strings.Split(c.initialColumns, ","))
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	go manager.Start(ctx)
@@ -59,7 +59,7 @@ func main() {
 		store:   db,
 		manager: manager,
 		session: session,
-		nats:    natscon,
+		nats:    nc,
 	}
 
 	logger.Info(fmt.Sprintf("%s (%s) running on :%d", appName, appVersion, c.port))

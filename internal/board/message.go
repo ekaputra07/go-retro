@@ -35,6 +35,12 @@ func newStream(key string, op jetstream.KeyValueOp, value []byte) (*stream, erro
 	}
 
 	switch s.Type {
+	case "clients":
+		var c models.Client
+		if err := json.Unmarshal(value, &c); err != nil {
+			return nil, err
+		}
+		s.Object = c
 	case "columns":
 		var c models.Column
 		if err := json.Unmarshal(value, &c); err != nil {
@@ -59,7 +65,7 @@ type messageType string
 
 const (
 	messageTypeMe                messageType = "me"
-	messageTypeBoardUsers        messageType = "board.users"
+	messageTypeMessages          messageType = "messages"
 	messageTypeBoardNotification messageType = "board.notification"
 	messageTypeColumnNew         messageType = "column.new"
 	messageTypeColumnUpdate      messageType = "column.update"
@@ -72,11 +78,33 @@ const (
 	messageTypeTimerState        messageType = "timer.state"
 )
 
-// message represents a message that can be sent to and from the client
+// messageList is a type of message where it contains multiple messages in it.
+// this is to allow sending multiple messages at once.
+type messageList struct {
+	BoardID  uuid.UUID   `json:"board_id"`
+	Type     messageType `json:"type"`
+	Messages []message   `json:"messages"`
+}
+
+func (ml *messageList) encode() ([]byte, error) {
+	return json.Marshal(ml)
+}
+
+func newMessageList(boardID uuid.UUID, msgs ...message) *messageList {
+	return &messageList{BoardID: boardID, Type: messageTypeMessages, Messages: msgs}
+}
+
+// message represents single message that can be sent to and from the client
 type message struct {
-	Type messageType `json:"type"`
-	Data any         `json:"data"`
-	User models.User `json:"user"`
+	BoardID uuid.UUID   `json:"board_id"`
+	Type    messageType `json:"type"`
+	Data    any         `json:"data"`
+	User    models.User `json:"user"`
+}
+
+// encode returns JSON encoded message
+func (m message) encode() ([]byte, error) {
+	return json.Marshal(m)
 }
 
 // dataGet return value(any) from Data by given key

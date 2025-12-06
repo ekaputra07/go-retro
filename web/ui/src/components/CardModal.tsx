@@ -27,7 +27,7 @@ export function CardModal(p: props) {
     }
 
     useEffect(() => {
-        inputRef.current && inputRef.current.focus()
+        if (inputRef.current) inputRef.current.focus()
 
         emojiPicker.on("emoji", selection => {
             const newName = name + selection.emoji

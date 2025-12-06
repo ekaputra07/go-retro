@@ -33,9 +33,10 @@ func NewStore(ctx context.Context, nats *natsutil.NATS, namespace string) (*stor
 		return nil, err
 	}
 	return &store.Store{
-		Users:   &users{kv: kv},
-		Boards:  &boards{kv: kv},
-		Columns: &columns{kv: kv},
-		Cards:   &cards{kv: kv},
+		Clients: &clients{kv},
+		Users:   &users{kv},
+		Boards:  &boards{kv},
+		Columns: &columns{kv},
+		Cards:   &cards{kv},
 	}, nil
 }

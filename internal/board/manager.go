@@ -2,6 +2,7 @@ package board
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/ekaputra07/go-retro/internal/models"
@@ -10,15 +11,13 @@ import (
 	"github.com/google/uuid"
 )
 
-// BoardManager manages board instances
+// BoardManager provides apis to work with board and timer instances.
 type BoardManager struct {
 	logger              *slog.Logger
 	store               *store.Store
 	nats                *natsutil.NATS
+	timers              map[*timer]bool
 	initialBoardColumns []string
-	boards              map[*Board]bool
-	registerChan        chan *Board
-	unregisterChan      chan *Board
 	stopped             bool
 }
 
@@ -27,136 +26,74 @@ func (m *BoardManager) Healthy() bool {
 	return !m.stopped
 }
 
-// Start starts the board manager goroutine
+// Start starts the board manager
 func (m *BoardManager) Start(ctx context.Context) {
 	m.logger.Info("board-manager running...")
 
-	for {
-		select {
-		case b := <-m.registerChan:
-			m.boards[b] = true
-			m.logger.Info("board registered", "id", b.ID)
-		case b := <-m.unregisterChan:
-			delete(m.boards, b)
-			m.logger.Info("board unregistered", "id", b.ID)
-		case <-ctx.Done():
-			m.logger.Info("stopping manager...")
-			m.stopBoards()
-			m.stopped = true
-			m.logger.Info("board-manager stopped")
-			return
-		}
+	<-ctx.Done()
+	m.logger.Info("Stopping all timers:")
+	for t := range m.timers {
+		m.logger.Info(fmt.Sprintf("stopping timer %s...", t.BoardID))
+		close(t.stopChan)
 	}
+	m.stopped = true
+	m.logger.Info("board-manager stopped")
 }
 
-func (m *BoardManager) stopBoards() {
-	for b := range m.boards {
-		m.logger.Info("stopping board", "id", b.ID)
-		b.Stop()
+// StartTimer starts the timer process for given boardID, returns true if new process started.
+func (m *BoardManager) StartTimer(boardID uuid.UUID) bool {
+	_, err := queryTimerStatus(m.nats.Conn, boardID)
+
+	// if target timer not running anywhere, start new one
+	if err != nil {
+		timer := newTimer(boardID, m.nats, m.logger)
+
+		go timer.run()
+		m.timers[timer] = true
+		return true
 	}
+	return false
 }
 
-// RegisterBoard registers a board to the manager
-func (m *BoardManager) RegisterBoard(b *Board) {
-	m.registerChan <- b
-}
-
-// UnregisterBoard unregisters a board from the manager
-func (m *BoardManager) UnregisterBoard(b *Board) {
-	m.unregisterChan <- b
-}
-
-// CreateBoard creates board instance
-func (m *BoardManager) CreateBoard(ctx context.Context, id uuid.UUID) (*Board, error) {
-	var board *Board
-
-	// try to get existing board from DB
+// GetOrCreateBoard get or creates board record
+func (m *BoardManager) GetOrCreateBoard(ctx context.Context, id uuid.UUID) (*models.Board, error) {
 	b, err := m.store.Boards.Get(ctx, id)
 
 	if b != nil && err == nil {
 		// exist
 		m.logger.Info("board record exist", "id", id)
-		board, err = newBoard(m, b)
-		if err != nil {
-			return nil, err
-		}
+		return b, nil
 	} else {
 		// not found? create new board record with their initial columns
-		// TODO: these store operation should run in transaction (on real database)
 		nb := models.NewBoard(id)
 		err = m.store.Boards.Create(ctx, nb)
 		if err != nil {
 			return nil, err
 		}
 		m.logger.Info("board record created", "id", id)
-		// board instance from board model
-		board, err = newBoard(m, &nb)
-		if err != nil {
-			return nil, err
-		}
-	}
 
-	// if no columns records, create initial columns
-	keys, err := board.store.Columns.ListKeys(ctx, board.ID, 1)
-	if err != nil {
-		return nil, err
-	}
-	if len(keys) == 0 {
-		// create initial columns using in-board store
+		// create initial columns
 		for i, c := range m.initialBoardColumns {
-			col := models.NewColumn(c, board.ID)
+			col := models.NewColumn(c, id)
 			col.CreatedAt += int64(i) // alter created_at to keep order
-			err = board.store.Columns.Create(ctx, col)
+			err = m.store.Columns.Create(ctx, col)
 			if err != nil {
 				return nil, err
 			}
 			m.logger.Info("board colum created", "name", c)
 		}
+		return &nb, nil
 	}
-
-	return board, nil
-}
-
-// GetBoardProcess get running board from manager's boards registry
-func (m *BoardManager) GetBoardProcess(id uuid.UUID) *Board {
-	for b := range m.boards {
-		if b.ID == id {
-			return b
-		}
-	}
-	return nil
-}
-
-// StartBoardProcess returns existing or new board process
-func (m *BoardManager) StartBoardProcess(ctx context.Context, id uuid.UUID) error {
-	// board already running, return
-	if proc := m.GetBoardProcess(id); proc != nil {
-		m.logger.Info("board already running", "id", id)
-		return nil
-	}
-
-	// not running, create new board instance (and new record if needed)
-	b, err := m.CreateBoard(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	// start the board
-	m.RegisterBoard(b)
-	b.Start()
-	return nil
 }
 
 // NewBoardManager creates a new board manager instance
-func NewBoardManager(logger *slog.Logger, nats *natsutil.NATS, store *store.Store, initialcolumns []string) *BoardManager {
+func NewBoardManager(logger *slog.Logger, nats_ *natsutil.NATS, store *store.Store, initialcolumns []string) *BoardManager {
 	return &BoardManager{
 		logger:              logger,
-		nats:                nats,
+		nats:                nats_,
 		store:               store,
+		timers:              make(map[*timer]bool),
 		initialBoardColumns: initialcolumns,
-		boards:              make(map[*Board]bool),
-		registerChan:        make(chan *Board),
-		unregisterChan:      make(chan *Board),
 		stopped:             false,
 	}
 }

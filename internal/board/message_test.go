@@ -11,6 +11,41 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var boardID = uuid.New()
+
+func Test_newStream_clients(t *testing.T) {
+	t.Run("delete op", func(t *testing.T) {
+		s, err := newStream("boards.b.clients.c", jetstream.KeyValueDelete, nil)
+		assert.NoError(t, err)
+		assert.Equal(t, s.ID, "c")
+		assert.Equal(t, s.Op, "del")
+		assert.Equal(t, s.Type, "clients")
+		assert.Equal(t, s.Object, nil)
+	})
+
+	t.Run("purge op", func(t *testing.T) {
+		s, err := newStream("boards.b.clients.c", jetstream.KeyValuePurge, nil)
+		assert.NoError(t, err)
+		assert.Equal(t, s.ID, "c")
+		assert.Equal(t, s.Op, "del")
+		assert.Equal(t, s.Type, "clients")
+		assert.Equal(t, s.Object, nil)
+	})
+
+	t.Run("put op", func(t *testing.T) {
+		u := models.NewUser(1)
+		client := models.NewClient(&u, uuid.New())
+		val, _ := json.Marshal(client)
+
+		s, err := newStream("boards.b.clients.c", jetstream.KeyValuePut, val)
+		assert.NoError(t, err)
+		assert.Equal(t, s.ID, "c")
+		assert.Equal(t, s.Op, "put")
+		assert.Equal(t, s.Type, "clients")
+		assert.Equal(t, s.Object, client)
+	})
+}
+
 func Test_newStream_columns(t *testing.T) {
 	t.Run("delete op", func(t *testing.T) {
 		s, err := newStream("boards.b.columns.c", jetstream.KeyValueDelete, nil)
@@ -103,7 +138,7 @@ func Test_newStream_others(t *testing.T) {
 
 func Test_message_dataGet(t *testing.T) {
 	t.Run("infer error", func(t *testing.T) {
-		m := message{messageTypeColumnNew, nil, models.NewUser(1)}
+		m := message{boardID, messageTypeColumnNew, nil, models.NewUser(1)}
 		data, err := m.dataGet("id")
 		assert.Nil(t, data)
 		assert.Error(t, err)
@@ -114,7 +149,7 @@ func Test_message_dataGet(t *testing.T) {
 		d := map[string]any{
 			"id": "test",
 		}
-		m := message{messageTypeColumnNew, d, models.NewUser(1)}
+		m := message{boardID, messageTypeColumnNew, d, models.NewUser(1)}
 		data, err := m.dataGet("name")
 		assert.Nil(t, data)
 		assert.Error(t, err)
@@ -125,7 +160,7 @@ func Test_message_dataGet(t *testing.T) {
 		d := map[string]any{
 			"id": "test",
 		}
-		m := message{messageTypeColumnNew, d, models.NewUser(1)}
+		m := message{boardID, messageTypeColumnNew, d, models.NewUser(1)}
 		data, err := m.dataGet("id")
 		assert.NoError(t, err)
 		assert.Equal(t, "test", data)
@@ -138,7 +173,7 @@ func Test_message_stringVar(t *testing.T) {
 			"id": "test",
 		}
 		var val string
-		m := message{messageTypeColumnNew, d, models.NewUser(1)}
+		m := message{boardID, messageTypeColumnNew, d, models.NewUser(1)}
 		err := m.stringVar(&val, "id")
 		assert.NoError(t, err)
 		assert.Equal(t, "test", val)
@@ -149,7 +184,7 @@ func Test_message_stringVar(t *testing.T) {
 			"id": 123,
 		}
 		var val string
-		m := message{messageTypeColumnNew, d, models.NewUser(1)}
+		m := message{boardID, messageTypeColumnNew, d, models.NewUser(1)}
 		err := m.stringVar(&val, "id")
 		assert.Error(t, err)
 		assert.Equal(t, "", val)
@@ -162,7 +197,7 @@ func Test_message_intVar(t *testing.T) {
 			"id": float64(123),
 		}
 		var val int
-		m := message{messageTypeColumnNew, d, models.NewUser(1)}
+		m := message{boardID, messageTypeColumnNew, d, models.NewUser(1)}
 		err := m.intVar(&val, "id")
 		assert.NoError(t, err)
 		assert.Equal(t, 123, val)
@@ -173,7 +208,7 @@ func Test_message_intVar(t *testing.T) {
 			"id": "123",
 		}
 		var val int
-		m := message{messageTypeColumnNew, d, models.NewUser(1)}
+		m := message{boardID, messageTypeColumnNew, d, models.NewUser(1)}
 		err := m.intVar(&val, "id")
 		assert.Error(t, err)
 		assert.Equal(t, 0, val)
@@ -187,7 +222,7 @@ func Test_message_uuidVar(t *testing.T) {
 			"id": id.String(),
 		}
 		var val uuid.UUID
-		m := message{messageTypeColumnNew, d, models.NewUser(1)}
+		m := message{boardID, messageTypeColumnNew, d, models.NewUser(1)}
 		err := m.uuidVar(&val, "id")
 		assert.NoError(t, err)
 		assert.Equal(t, id, val)
@@ -198,7 +233,7 @@ func Test_message_uuidVar(t *testing.T) {
 			"id": "123",
 		}
 		var val uuid.UUID
-		m := message{messageTypeColumnNew, d, models.NewUser(1)}
+		m := message{boardID, messageTypeColumnNew, d, models.NewUser(1)}
 		err := m.uuidVar(&val, "id")
 		assert.Error(t, err)
 		assert.Equal(t, uuid.Nil, val)

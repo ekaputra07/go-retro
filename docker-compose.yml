@@ -1,6 +1,6 @@
 services:
   nats:
-    image: nats:latest
+    image: nats:2.12.2-alpine
     ports:
       - "4222:4222"
     command: -js

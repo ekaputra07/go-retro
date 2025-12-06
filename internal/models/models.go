@@ -69,3 +69,19 @@ func NewCard(name string, boardID, columnID uuid.UUID) Card {
 		CreatedAt: time.Now().Unix(),
 	}
 }
+
+type Client struct {
+	ID        uuid.UUID `json:"id"`
+	BoardID   uuid.UUID `json:"board_id"`
+	User      *User     `json:"user"`
+	CreatedAt int64     `json:"created_at"`
+}
+
+func NewClient(user *User, boardID uuid.UUID) Client {
+	return Client{
+		ID:        uuid.New(),
+		BoardID:   boardID,
+		User:      user,
+		CreatedAt: time.Now().Unix(),
+	}
+}
