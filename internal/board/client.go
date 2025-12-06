@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"slices"
 	"time"
 
 	"github.com/ekaputra07/go-retro/internal/models"
@@ -55,6 +56,7 @@ func (c *Client) publish(topic string, msg any) {
 }
 
 // checkTimerStateMessage check for latest state of active timer.
+// only return message when its in 'running' or 'paused' state.
 func (c *Client) checkTimerStateMessage() *message {
 	msg, err := queryTimerStatus(c.nats.Conn, c.BoardID)
 	if err != nil {
@@ -66,7 +68,17 @@ func (c *Client) checkTimerStateMessage() *message {
 		c.logger.Error("error decoding timer status message", "err", err.Error())
 		return nil
 	}
-	return &m
+	var status string
+	err = m.stringVar(&status, "status")
+	if err != nil {
+		c.logger.Error("error reading status", "err", err.Error())
+		return nil
+	}
+	// ignore timer state when its stopped or done.
+	if slices.Contains([]string{string(timerStatusRunning), string(timerStatusPaused)}, status) {
+		return &m
+	}
+	return nil
 }
 
 // read reads message from socket
