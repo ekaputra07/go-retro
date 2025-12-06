@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, Activity } from 'react'
 import useWebSocket from 'react-use-websocket'
 import { DndProvider } from 'react-dnd'
 import { HTML5Backend } from 'react-dnd-html5-backend'
@@ -97,33 +97,34 @@ function App() {
           {/* I put a 100ms delay in NameModal so that it won't create a short blip */}
           {socketUrl === '' && <NameModal onJoin={saveName} />}
 
-          {socketUrl !== '' &&
-            <div className="py-4 px-6">
-              {/* kanban board */}
-              <div className="flex justify-items-start mt-4">
+          <div className="py-4 px-6">
+            {/* kanban board */}
+            <div className="flex justify-items-start mt-4">
 
-                {/* stand-up */}
-                <div className="grid grid-cols-1 gap-4 pb-2 items-start">
-                  {standupOpen && <Standup {...standupProps} />}
-                </div>
+              {/* stand-up */}
+              <div className="grid grid-cols-1 gap-4 pb-2 items-start">
+                {standupOpen && <Standup {...standupProps} />}
+              </div>
 
-                {/* columns */}
-                <div className={"flex-1 grid gap-4 pb-2 items-start " + gridColsClass(columns.length)}>
-                  {columns.map((col) =>
-                    <ColumnItem column={col} sender={sendJsonMessage} key={col.id}>
-                      {cards
-                        .filter(c => c.column_id === col.id)
-                        .map((c) => <CardItem column={col} card={c} sender={sendJsonMessage} key={c.id} />)}
-                    </ColumnItem>
-                  )}
-                </div>
+              {/* columns */}
+              <div className={"flex-1 grid gap-4 pb-2 items-start " + gridColsClass(columns.length)}>
+                {columns.map((col) =>
+                  <ColumnItem column={col} sender={sendJsonMessage} key={col.id}>
+                    {cards
+                      .filter(c => c.column_id === col.id)
+                      .map((c) => <CardItem column={col} card={c} sender={sendJsonMessage} key={c.id} />)}
+                  </ColumnItem>
+                )}
               </div>
             </div>
-          }
+          </div>
         </div>
 
         <div className="flex flex-col">
-          {timerModalOpen && <TimerModal {...timerModalProps} />}
+          <Activity mode={timerModalOpen ? 'visible' : 'hidden'}>
+            <TimerModal {...timerModalProps} />
+          </Activity>
+
           {columnModalOpen && <ColumnModal {...columnModalProps} />}
           <Toolbar
             users={users}
