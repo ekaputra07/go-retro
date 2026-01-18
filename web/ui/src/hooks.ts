@@ -11,6 +11,16 @@ export interface BoardState {
     timerState: TimerState | null
 }
 
+function sorterFunc<T>(a: T, b: T): number {
+    // if its card and votes are either larger or less than zero, sort by abs(votes) descending
+    // this is to prioritize both upvoted and downvoted cards (not based on the value of votes)
+    if ((a as Card).votes !== 0 || (b as Card).votes !== 0) {
+        return Math.abs(((b as Card).votes || 0)) - Math.abs(((a as Card).votes || 0))
+    }
+    // otherwise sort by created_at ascending
+    return ((a as { created_at: number }).created_at) - ((b as { created_at: number }).created_at)
+}
+
 function applyChangeOperation<T>(list: T[], change: ChangeOp<T>): T[] {
     const obj: T = change.obj as T
 
@@ -23,10 +33,10 @@ function applyChangeOperation<T>(list: T[], change: ChangeOp<T>): T[] {
         } else if (change.op === "del") {
             newList.splice(idx, 1)
         }
-        return newList.sort((a: T, b: T) => ((a as { created_at: number }).created_at) - ((b as { created_at: number }).created_at))
+        return newList.sort(sorterFunc)
     } else if (idx === -1 && change.op === "put") {
         newList.push(obj)
-        return newList.sort((a: T, b: T) => ((a as { created_at: number }).created_at) - ((b as { created_at: number }).created_at))
+        return newList.sort(sorterFunc)
     }
     return newList
 }
